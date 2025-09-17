@@ -32,7 +32,7 @@ while [[ $# -gt 0 ]]; do
             usage
             ;;
         *)
-            echo "❌ Erro: Parâmetro desconhecido $1"
+            echo "❌ Error: Unknown parameter $1"
             usage
             ;;
     esac
@@ -40,36 +40,36 @@ done
 
 # Validate required parameters
 if [[ -z "$BUCKET_NAME" ]]; then
-    echo "❌ Erro: --bucket é obrigatório"
+    echo "❌ Error: --bucket is required"
     usage
 fi
 
 if [[ -z "$REGION" ]]; then
-    echo "❌ Erro: --region é obrigatório"
+    echo "❌ Error: --region is required"
     usage
 fi
 
-echo "✅ Iniciando bootstrap para o ambiente Terraform..."
+echo "✅ Starting bootstrap for Terraform environment..."
 echo "--------------------------------------------------"
 
-echo "Bucket S3:        $BUCKET_NAME"
-echo "Região AWS:       $REGION"
+echo "S3 Bucket:        $BUCKET_NAME"
+echo "AWS Region:       $REGION"
 echo "--------------------------------------------------"
 
 setup_s3_bucket() {
-  echo -n "Verificando bucket S3... "
+  echo -n "Checking S3 bucket... "
   if aws s3api head-bucket --bucket "$BUCKET_NAME" 2>/dev/null; then
-    echo "✔️ Encontrado."
+    echo "✔️ Found."
   else
-    echo "❌ Não encontrado. Criando..."
+    echo "❌ Not found. Creating..."
     aws s3api create-bucket --bucket "$BUCKET_NAME" --region "$REGION"
-    echo "✔️ Bucket S3 '$BUCKET_NAME' criado."
+    echo "✔️ S3 bucket '$BUCKET_NAME' created."
   fi
 }
 
-# --- 🚀 EXECUÇÃO ---
+# --- 🚀 EXECUTION ---
 setup_s3_bucket
 
 echo "--------------------------------------------------"
-echo "✅ Ambiente de backend pronto."
-echo "🚀 Bootstrap concluído!"
+echo "✅ Backend environment ready."
+echo "🚀 Bootstrap completed!"
