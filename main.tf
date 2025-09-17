@@ -5,6 +5,10 @@ terraform {
       version = "~> 4.0"
     }
   }
+
+  backend "s3" {
+    key = "terraform/terraform.tfstate"
+  }
 }
 
 provider "aws" {
