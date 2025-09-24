@@ -4,9 +4,14 @@ data "aws_lambda_function" "get_function" {
 
 # Include the authorizer module
 module "authorizer" {
-  source = "./authorizer"
+  source = "./authorizer/iac"
 
   authorizer_function_name = var.authorizer_function_name
+  database_port            = var.database_port
+  database_user            = var.database_user
+  database_host            = var.database_host
+  database_name            = var.database_name
+  database_password        = var.database_password
 }
 
 resource "aws_apigatewayv2_api" "http_api" {

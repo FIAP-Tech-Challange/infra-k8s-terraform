@@ -39,10 +39,24 @@ jobs:
       - name: Terraform Plan
         run: |
           terraform plan -no-color \
-            -var="aws_region=${{ secrets.AWS_REGION }}"
+            -var="aws_region=${{ secrets.AWS_REGION }}" \
+            -var="lambda_function_name=${{ secrets.LAMBDA_FUNCTION_NAME }}" \
+            -var="authorizer_function_name=${{ secrets.AUTHORIZER_FUNCTION_NAME }}" \
+            -var="database_port=${{ secrets.DATABASE_PORT }}" \
+            -var="database_host=${{ secrets.DATABASE_HOST }}" \
+            -var="database_user=${{ secrets.DATABASE_USER }}" \
+            -var="database_password=${{ secrets.DATABASE_PASSWORD }}" \
+            -var="database_name=${{ secrets.DATABASE_NAME }}"
 
       - name: Terraform Apply
         if: github.ref == 'refs/heads/main'
         run: |
           terraform apply -auto-approve \
-            -var="aws_region=${{ secrets.AWS_REGION }}"
+            -var="aws_region=${{ secrets.AWS_REGION }}" \
+            -var="lambda_function_name=${{ secrets.LAMBDA_FUNCTION_NAME }}" \
+            -var="authorizer_function_name=${{ secrets.AUTHORIZER_FUNCTION_NAME }}" \
+            -var="database_port=${{ secrets.DATABASE_PORT }}" \
+            -var="database_host=${{ secrets.DATABASE_HOST }}" \
+            -var="database_user=${{ secrets.DATABASE_USER }}" \
+            -var="database_password=${{ secrets.DATABASE_PASSWORD }}" \
+            -var="database_name=${{ secrets.DATABASE_NAME }}"

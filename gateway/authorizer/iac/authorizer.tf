@@ -1,6 +1,6 @@
 # IAM role for the Lambda authorizer
 resource "aws_iam_role" "authorizer_lambda_role" {
-  name = "sahdo-authorizer-lambda-role"
+  name = "lambda-role-${var.authorizer_function_name}"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -31,8 +31,9 @@ resource "aws_cloudwatch_log_group" "authorizer_lambda_logs" {
 # Archive the Lambda function code
 data "archive_file" "authorizer_lambda_zip" {
   type        = "zip"
-  source_file = "${path.module}/index.cjs"
+  source_dir  = "${path.module}/.."
   output_path = "${path.module}/authorizer-lambda.zip"
+  excludes    = ["*.zip", "iac/"]
 }
 
 # Lambda function for the authorizer
@@ -40,7 +41,7 @@ resource "aws_lambda_function" "authorizer" {
   filename         = data.archive_file.authorizer_lambda_zip.output_path
   function_name    = var.authorizer_function_name
   role            = aws_iam_role.authorizer_lambda_role.arn
-  handler         = "index.handler"
+  handler         = "src/index.handler"
   runtime         = "nodejs18.x"
   timeout         = 10
 
@@ -54,6 +55,11 @@ resource "aws_lambda_function" "authorizer" {
   environment {
     variables = {
       LOG_LEVEL = "INFO"
+      DB_PORT   = var.database_port
+      DB_USER   = var.database_user
+      DB_HOST   = var.database_host
+      DB_NAME   = var.database_name
+      DB_PASSWORD   = var.database_password
     }
   }
 }
