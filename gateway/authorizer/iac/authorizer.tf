@@ -32,8 +32,11 @@ resource "aws_cloudwatch_log_group" "authorizer_lambda_logs" {
 data "archive_file" "authorizer_lambda_zip" {
   type        = "zip"
   source_dir  = "${path.module}/.."
-  output_path = "${path.module}/authorizer-lambda.zip"
-  excludes    = ["*.zip", "iac/"]
+  output_path = "${path.module}/../authorizer-lambda.zip"
+  excludes    = [
+    "iac/**",
+    "*.zip",
+  ]
 }
 
 # Lambda function for the authorizer

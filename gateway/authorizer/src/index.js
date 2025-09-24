@@ -1,5 +1,5 @@
-import { DatabaseClient } from "./DatabaseClient";
-import { TotemInvalidOrNotFound } from "./Exception";
+import { DatabaseClient } from "./DatabaseClient.js";
+import { TotemInvalidOrNotFound } from "./Exception.js";
 
 export const handler = async (event) => {
     try {
