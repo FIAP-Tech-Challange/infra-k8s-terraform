@@ -38,3 +38,74 @@ variable "database_name" {
   description = "Name of the database"
   type        = string
 }
+
+# Project Configuration
+variable "project_name" {
+  description = "The name of the project"
+  type        = string
+  default     = "tc-3-f106"
+}
+
+variable "region_default" {
+  description = "The default region for the resources"
+  type        = string
+  default     = "us-east-1"
+}
+
+variable "tags" {
+  description = "A map of tags to assign to the resources"
+  type        = map(string)
+  default = {
+    name = "tc_tf"
+  }
+}
+
+# Network Configuration
+variable "cidr_block" {
+  description = "The CIDR block for the VPC"
+  type        = string
+  default     = "10.0.0.0/16"
+}
+
+variable "availability_zones" {
+  description = "List of availability zones"
+  type        = list(string)
+  default     = ["us-east-1a", "us-east-1b", "us-east-1c"]
+}
+
+# EKS Configuration
+variable "cluster_version" {
+  description = "Kubernetes version for the EKS cluster"
+  type        = string
+  default     = "1.31"
+}
+
+variable "instance_type" {
+  description = "The instance type for the EKS worker nodes"
+  type        = string
+  default     = "t3.medium"
+}
+
+variable "node_group_desired_size" {
+  description = "Desired number of nodes in the node group"
+  type        = number
+  default     = 2
+}
+
+variable "node_group_max_size" {
+  description = "Maximum number of nodes in the node group"
+  type        = number
+  default     = 3
+}
+
+variable "node_group_min_size" {
+  description = "Minimum number of nodes in the node group"
+  type        = number
+  default     = 1
+}
+
+variable "node_disk_size" {
+  description = "Disk size in GB for worker nodes"
+  type        = number
+  default     = 50
+}
