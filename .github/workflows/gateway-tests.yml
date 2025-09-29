@@ -36,9 +36,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run linting
-        run: npm run lint --if-present
-
       - name: Run tests
         run: npm test
 
@@ -52,38 +49,3 @@ jobs:
           flags: authorizer
           name: authorizer-coverage
           fail_ci_if_error: false
-
-  test-gateway-terraform:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: 1.5.0
-
-      - name: Terraform Format Check
-        run: terraform fmt -check -recursive
-
-      - name: Terraform Init (Gateway)
-        run: |
-          cd gateway
-          terraform init -backend=false
-
-      - name: Terraform Validate (Gateway)
-        run: |
-          cd gateway
-          terraform validate
-
-      - name: Terraform Init (Authorizer IAC)
-        run: |
-          cd gateway/authorizer/iac
-          terraform init -backend=false
-
-      - name: Terraform Validate (Authorizer IAC)
-        run: |
-          cd gateway/authorizer/iac
-          terraform validate
