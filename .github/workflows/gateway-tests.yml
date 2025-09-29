@@ -1,0 +1,89 @@
+name: Gateway Tests
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - "gateway/**"
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - "gateway/**"
+
+jobs:
+  test-authorizer:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: ./gateway/authorizer
+
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: "npm"
+          cache-dependency-path: ./gateway/authorizer/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run linting
+        run: npm run lint --if-present
+
+      - name: Run tests
+        run: npm test
+
+      - name: Run tests with coverage
+        run: npm run test:coverage
+
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./gateway/authorizer/coverage/lcov.info
+          flags: authorizer
+          name: authorizer-coverage
+          fail_ci_if_error: false
+
+  test-gateway-terraform:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.5.0
+
+      - name: Terraform Format Check
+        run: terraform fmt -check -recursive
+
+      - name: Terraform Init (Gateway)
+        run: |
+          cd gateway
+          terraform init -backend=false
+
+      - name: Terraform Validate (Gateway)
+        run: |
+          cd gateway
+          terraform validate
+
+      - name: Terraform Init (Authorizer IAC)
+        run: |
+          cd gateway/authorizer/iac
+          terraform init -backend=false
+
+      - name: Terraform Validate (Authorizer IAC)
+        run: |
+          cd gateway/authorizer/iac
+          terraform validate
