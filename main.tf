@@ -16,7 +16,7 @@ provider "aws" {
 }
 
 module "gateway" {
-  source = "./gateway"
+  source                   = "./gateway"
   lambda_function_name     = var.lambda_function_name
   authorizer_function_name = var.authorizer_function_name
   database_port            = var.database_port
