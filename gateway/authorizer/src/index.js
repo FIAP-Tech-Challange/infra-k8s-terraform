@@ -1,47 +1,47 @@
-import { DatabaseClient } from "./DatabaseClient.js";
-import { TotemInvalidOrNotFound } from "./Exception.js";
+import { DatabaseClient } from './DatabaseClient.js';
+import { TotemInvalidOrNotFound } from './Exception.js';
 
 export const handler = async (event) => {
-    try {
-        const token = event.headers?.authorization;
-        console.log("Extracted token:", token);
+  try {
+    const token = event.headers?.authorization;
+    console.log('Extracted token:', token);
 
-        validateToken(token);
+    validateToken(token);
 
-        const dbClient = await DatabaseClient.initDbClient({
-            database: process.env.DB_NAME,
-            host: process.env.DB_HOST,
-            password: process.env.DB_PASSWORD,
-            port: parseInt(process.env.DB_PORT, 10),
-            user: process.env.DB_USER,
-        });
+    const dbClient = await DatabaseClient.initDbClient({
+      database: process.env.DB_NAME,
+      host: process.env.DB_HOST,
+      password: process.env.DB_PASSWORD,
+      port: parseInt(process.env.DB_PORT, 10),
+      user: process.env.DB_USER,
+    });
 
-        const totemId = await verifyTokenWithStoreTotem(token, dbClient);
+    const totemId = await verifyTokenWithStoreTotem(token, dbClient);
 
-        return {
-            isAuthorized: true,
-            context: {
-                totemId: totemId,
-            },
-        };
-    } catch (error) {
-        if (error instanceof TotemInvalidOrNotFound) {
-            return {
-                isAuthorized: false,
-                context: {
-                    reason: error.message,
-                },
-            };
-        }
-
-        console.error("Unexpected error during authorization:", error);
-        return {
-            isAuthorized: false,
-            context: {
-                reason: "Internal server error",
-            },
-        };
+    return {
+      isAuthorized: true,
+      context: {
+        totemId: totemId,
+      },
+    };
+  } catch (error) {
+    if (error instanceof TotemInvalidOrNotFound) {
+      return {
+        isAuthorized: false,
+        context: {
+          reason: error.message,
+        },
+      };
     }
+
+    console.error('Unexpected error during authorization:', error);
+    return {
+      isAuthorized: false,
+      context: {
+        reason: 'Internal server error',
+      },
+    };
+  }
 };
 
 /**
@@ -50,24 +50,24 @@ export const handler = async (event) => {
  * @returns {void}
  */
 function validateToken(token) {
-    console.log("Validating token format");
+  console.log('Validating token format');
 
-    if (!token) {
-        console.warn("No token provided");
-        throw new TotemInvalidOrNotFound();
-    }
+  if (!token) {
+    console.warn('No token provided');
+    throw new TotemInvalidOrNotFound();
+  }
 
-    if (typeof token !== "string") {
-        console.warn("Token is not a string");
-        throw new TotemInvalidOrNotFound();
-    }
+  if (typeof token !== 'string') {
+    console.warn('Token is not a string');
+    throw new TotemInvalidOrNotFound();
+  }
 
-    if (token.length === 0) {
-        console.warn("Token is an empty string");
-        throw new TotemInvalidOrNotFound();
-    }
+  if (token.length === 0) {
+    console.warn('Token is an empty string');
+    throw new TotemInvalidOrNotFound();
+  }
 
-    console.log("Token format is valid");
+  console.log('Token format is valid');
 }
 
 /**
@@ -77,22 +77,25 @@ function validateToken(token) {
  * @returns {Promise<id>} Totem ID if valid
  */
 async function verifyTokenWithStoreTotem(token, dbClient) {
-    try {
-        console.log("Verifying token with StoreTotem:", token);
+  try {
+    console.log('Verifying token with StoreTotem:', token);
 
-        const res = await dbClient.query(
-            "SELECT id, token_access from totems WHERE token_access = ?",
-            [token],
-        );
+    const res = await dbClient.query(
+      'SELECT id, token_access from totems WHERE token_access = ?',
+      [token]
+    );
 
-        if (res.rows.length === 0) {
-            console.warn("Totem not found for token");
-            throw new TotemInvalidOrNotFound();
-        }
-
-        return res.rows[0].id;
-    } catch (error) {
-        console.error("Error verifying token with StoreTotem:", error);
-        throw new Error("Database Error");
+    if (res.rows.length === 0) {
+      console.warn('Totem not found for token');
+      throw new TotemInvalidOrNotFound();
     }
+
+    return res.rows[0].id;
+  } catch (error) {
+    if (error instanceof TotemInvalidOrNotFound) {
+      throw error; // Re-throw validation errors
+    }
+    console.error('Error verifying token with StoreTotem:', error);
+    throw new Error('Database Error');
+  }
 }
