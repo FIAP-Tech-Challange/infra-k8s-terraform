@@ -50,6 +50,8 @@ export const handler = async (event) => {
  * @returns {void}
  */
 function validateToken(token) {
+    console.log("Validating token format");
+
     if (!token) {
         console.warn("No token provided");
         throw new TotemInvalidOrNotFound();
@@ -64,6 +66,8 @@ function validateToken(token) {
         console.warn("Token is an empty string");
         throw new TotemInvalidOrNotFound();
     }
+
+    console.log("Token format is valid");
 }
 
 /**
@@ -74,6 +78,8 @@ function validateToken(token) {
  */
 async function verifyTokenWithStoreTotem(token, dbClient) {
     try {
+        console.log("Verifying token with StoreTotem:", token);
+
         const res = await dbClient.query(
             "SELECT id, token_access from totems WHERE token_access = ?",
             [token],

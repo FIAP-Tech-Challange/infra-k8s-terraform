@@ -28,6 +28,19 @@ resource "aws_cloudwatch_log_group" "authorizer_lambda_logs" {
   retention_in_days = 1
 }
 
+# Run npm install before zipping
+resource "null_resource" "npm_install" {
+  triggers = {
+    package_json = filemd5("${path.module}/../package.json")
+    package_lock = filemd5("${path.module}/../package-lock.json")
+  }
+
+  provisioner "local-exec" {
+    command     = "npm install --production"
+    working_dir = "${path.module}/.."
+  }
+}
+
 # Archive the Lambda function code
 data "archive_file" "authorizer_lambda_zip" {
   type        = "zip"
@@ -36,7 +49,10 @@ data "archive_file" "authorizer_lambda_zip" {
   excludes    = [
     "iac/**",
     "*.zip",
+    ".git/**"
   ]
+
+  depends_on = [null_resource.npm_install]
 }
 
 # Lambda function for the authorizer

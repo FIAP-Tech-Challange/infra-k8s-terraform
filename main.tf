@@ -26,7 +26,7 @@ module "gateway" {
   database_password        = var.database_password
 }
 
-output "api_hello_auth_endpoint" {
-  description = "URL for the authenticated hello endpoint"
-  value       = module.gateway.api_hello_auth
+output "validate_cpf_endpoint" {
+  description = "URL for the validate CPF endpoint"
+  value       = module.gateway.api_validate_cpf
 }
