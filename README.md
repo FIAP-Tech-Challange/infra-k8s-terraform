@@ -196,3 +196,151 @@ O pipeline do GitHub Actions executa automaticamente quando:
 ## TODO - Optional State Locking
 
 For team collaboration and CI/CD safety, consider adding DynamoDB state locking (~$0.25/month cost).
+
+# EKS Cluster com Terraform
+
+Este projeto cria um cluster Amazon EKS usando Terraform.
+
+## 📋 Pré-requisitos
+
+- AWS CLI configurado
+- Terraform instalado
+- Conta AWS Academy ou permissões adequadas
+
+## 🚀 Como usar
+
+### 1. Configurar variáveis
+Edite o arquivo `terraform.tfvars`:
+```hcl
+# ARN do usuário/role para acesso ao cluster EKS
+principal_user_arn = "arn:aws:iam::SUA-CONTA:root"
+```
+
+### 2. Aplicar a infraestrutura
+```bash
+# Inicializar o Terraform
+terraform init
+
+# Verificar o plano
+terraform plan
+
+# Aplicar as mudanças
+terraform apply
+```
+
+### 3. Configurar kubectl
+Após a criação do cluster, configure o kubectl:
+
+**⚠️ IMPORTANTE: Execute estes comandos na ordem correta:**
+
+```bash
+# 1. Configurar credenciais AWS (se necessário)
+aws configure list
+
+# 2. Atualizar kubeconfig para o cluster EKS
+aws eks update-kubeconfig --region us-east-1 --name eks-tc-3-f106
+
+# 3. Verificar se a configuração funcionou
+kubectl config get-contexts
+
+# 4. Testar a conexão
+kubectl get svc
+```
+
+### 4. Verificar o cluster
+```bash
+# Verificar nodes (após configurar kubectl)
+kubectl get nodes
+
+# Verificar pods do sistema
+kubectl get pods -A
+```
+
+## 📊 Recursos criados
+
+- **EKS Cluster**: `eks-tc-3-f106`
+- **Node Group**: `nodeg-tc-3-f106`
+- **Instâncias**: 1-3 nodes t3.medium
+- **VPC**: Usa a VPC default da AWS
+- **Subnets**: Usa subnets existentes da VPC default
+
+## 🔧 Configurações
+
+| Variável | Descrição | Padrão |
+|----------|-----------|---------|
+| `project_name` | Nome do projeto | `tc-3-f106` |
+| `cluster_version` | Versão do Kubernetes | `1.31` |
+| `instance_type` | Tipo da instância | `t3.medium` |
+| `node_group_desired_size` | Número desejado de nodes | `1` |
+| `node_group_max_size` | Número máximo de nodes | `3` |
+| `node_group_min_size` | Número mínimo de nodes | `1` |
+
+## 🧹 Limpeza
+
+Para destruir todos os recursos:
+```bash
+terraform destroy
+```
+
+## 📁 Estrutura do projeto
+
+```
+├── main.tf              # Configuração principal
+├── variables.tf         # Variáveis do projeto
+├── outputs.tf          # Outputs
+├── providers.tf        # Providers AWS
+├── terraform.tfvars    # Valores das variáveis
+└── modules/
+    └── eks/            # Módulo EKS
+        ├── main.tf     # Cluster + Node Group
+        ├── variables.tf
+        └── outputs.tf
+```
+
+## ⚠️ Notas importantes
+
+- **AWS Academy**: Usa `LabRole` existente (sem criar roles IAM)
+- **VPC Default**: Utiliza a VPC padrão da conta AWS
+- **Subnets**: Usa subnets existentes (sem criar novas)
+- **Simplicidade**: Configuração mínima para funcionamento
+
+## 🆘 Troubleshooting
+
+### ❌ Erro: "the server has asked for the client to provide credentials"
+
+**Causa**: kubectl não está configurado corretamente para o cluster EKS.
+
+**Soluções** (tente na ordem):
+
+#### Solução 1 - Reconfiguração básica:
+```bash
+# 1. Verificar se AWS CLI está configurado
+aws sts get-caller-identity
+
+# 2. Reconfigurar kubectl para EKS
+aws eks update-kubeconfig --region us-east-1 --name eks-tc-3-f106
+
+# 3. Verificar se funcionou
+kubectl get svc
+```
+
+## 📚 Comandos úteis
+
+```bash
+# Ver informações do cluster
+aws eks describe-cluster --name eks-tc-3-f106
+
+# Ver nodes do cluster
+kubectl get nodes -o wide
+
+# Ver todos os recursos
+kubectl get all -A
+
+# Deletar um pod
+kubectl delete pod NOME-DO-POD
+
+# Ver logs de um pod
+kubectl logs NOME-DO-POD
+```
+
+---
