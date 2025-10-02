@@ -1,19 +1,6 @@
-# IAM role for the Lambda authorizer
-resource "aws_iam_role" "authorizer_lambda_role" {
-  name = "lambda-role-${var.authorizer_function_name}"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action = "sts:AssumeRole"
-        Effect = "Allow"
-        Principal = {
-          Service = "lambda.amazonaws.com"
-        }
-      }
-    ]
-  })
+# Use existing LabRole for Lambda Cluster (AWS Academy compatible)
+data "aws_iam_role" "authorizer_lambda_role" {
+  name = "LabRole"
 }
 
 # IAM policy attachment for basic Lambda execution
