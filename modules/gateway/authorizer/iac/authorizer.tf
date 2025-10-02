@@ -3,11 +3,8 @@ data "aws_iam_role" "authorizer_lambda_role" {
   name = "LabRole"
 }
 
-# IAM policy attachment for basic Lambda execution
-resource "aws_iam_role_policy_attachment" "authorizer_lambda_basic" {
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
-  role       = data.aws_iam_role.authorizer_lambda_role.name
-}
+# Note: LabRole in AWS Academy already has necessary permissions
+# Skipping policy attachment as it's not allowed in AWS Academy environment
 
 # CloudWatch log group for the Lambda function
 resource "aws_cloudwatch_log_group" "authorizer_lambda_logs" {
@@ -54,7 +51,6 @@ resource "aws_lambda_function" "authorizer" {
   source_code_hash = data.archive_file.authorizer_lambda_zip.output_base64sha256
 
   depends_on = [
-    aws_iam_role_policy_attachment.authorizer_lambda_basic,
     aws_cloudwatch_log_group.authorizer_lambda_logs,
   ]
 
