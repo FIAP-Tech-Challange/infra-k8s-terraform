@@ -6,7 +6,7 @@ data "aws_iam_role" "authorizer_lambda_role" {
 # IAM policy attachment for basic Lambda execution
 resource "aws_iam_role_policy_attachment" "authorizer_lambda_basic" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
-  role       = aws_iam_role.authorizer_lambda_role.name
+  role       = data.aws_iam_role.authorizer_lambda_role.name
 }
 
 # CloudWatch log group for the Lambda function
@@ -46,7 +46,7 @@ data "archive_file" "authorizer_lambda_zip" {
 resource "aws_lambda_function" "authorizer" {
   filename         = data.archive_file.authorizer_lambda_zip.output_path
   function_name    = var.authorizer_function_name
-  role            = aws_iam_role.authorizer_lambda_role.arn
+  role            = data.aws_iam_role.authorizer_lambda_role.arn
   handler         = "src/index.handler"
   runtime         = "nodejs18.x"
   timeout         = 10
