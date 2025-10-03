@@ -1,4 +1,4 @@
-name: 'Infrastructure CI/CD'
+name: "Infrastructure CI/CD"
 
 on:
   push:
@@ -6,13 +6,14 @@ on:
       - main
 
 jobs:
-  remote-config:
-    name: 'Remote Config Setup'
+  bootstrap:
+    name: "Bootstrap the application"
     runs-on: ubuntu-latest
     outputs:
-      db_host: ${{ env.DB_HOST }}
-      db_user: ${{ env.DB_USER }}
-      db_password: ${{ env.DB_PASSWORD }}
+      db_host: ${{ steps.set-outputs.outputs.db_host }}
+      db_user: ${{ steps.set-outputs.outputs.db_user }}
+      db_password: ${{ steps.set-outputs.outputs.db_password }}
+      terraform_bucket: ${{ steps.set-outputs.outputs.terraform_bucket }}
 
     steps:
       - name: Checkout
@@ -24,38 +25,81 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: us-east-1
 
       - name: Install AWS CLI if running in act
         if: env.ACT == 'true'
         run: |
           echo "Running under act, installing AWS CLI..."
           sudo apt-get update -y
-          sudo apt-get install -y unzip curl
+          sudo apt-get install -y unzip curl less
           curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
           unzip -q awscliv2.zip
           sudo ./aws/install
 
-      - name: Get remote config from Database at Parameter Store
+      - name: Create S3 Bucket for Terraform State
+        id: bootstrap
         run: |
-          aws ssm get-parameter --name "/${{ secrets.WORKSPACE }}/rds_endpoint" --with-decryption --query "Parameter.Value" --output text >> db_host.txt
-          aws ssm get-parameter --name "/${{ secrets.WORKSPACE }}/db_username" --with-decryption --query "Parameter.Value" --output text >> db_user.txt
-          aws ssm get-parameter --name "/${{ secrets.WORKSPACE }}/db_password" --with-decryption --query "Parameter.Value" --output text >> db_password.txt
+          BUCKET_PREFIX="terraform-state"
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          echo "AWS Account ID: $ACCOUNT_ID"
+
+          REGION="us-east-1"
+          BUCKET_NAME="${BUCKET_PREFIX}-${ACCOUNT_ID}"
+          echo "S3 bucket name: $BUCKET_NAME"
+
+          # Check if bucket exists, create if not
+          echo "Checking S3 bucket..."
+          if aws s3api head-bucket --bucket "$BUCKET_NAME" 2>/dev/null; then
+            echo "S3 bucket '$BUCKET_NAME' already exists"
+          else
+            echo "Creating S3 bucket '$BUCKET_NAME'..."
+            aws s3api create-bucket --bucket "$BUCKET_NAME" --region "$REGION"
+            echo "S3 bucket '$BUCKET_NAME' created successfully"
+          fi
+
+          echo "Bootstrap finished. Bucket: $BUCKET_NAME"
+          echo "BUCKET_NAME=$BUCKET_NAME" >> $GITHUB_ENV
+
+      - name: Get remote config from SSM
+        id: get-params
+        run: |
+          DB_HOST=$(aws ssm get-parameter --name "/main/rds_endpoint" --with-decryption --query "Parameter.Value" --output text)
+          DB_USER=$(aws ssm get-parameter --name "/main/db_username" --with-decryption --query "Parameter.Value" --output text)
+          DB_PASSWORD=$(aws ssm get-parameter --name "/main/db_password" --with-decryption --query "Parameter.Value" --output text)
+          # Export so the next step can access them as env vars
+          echo "DB_HOST=$DB_HOST" >> $GITHUB_ENV
+          echo "DB_USER=$DB_USER" >> $GITHUB_ENV
+          echo "DB_PASSWORD=$DB_PASSWORD" >> $GITHUB_ENV
 
       - name: Set outputs
+        id: set-outputs
         run: |
-          echo "DB_HOST=$(cat db_host.txt)" >> $GITHUB_ENV
-          echo "DB_USER=$(cat db_user.txt)" >> $GITHUB_ENV
-          echo "DB_PASSWORD=$(cat db_password.txt)" >> $GITHUB_ENV
+          echo "db_host=$DB_HOST" >> $GITHUB_OUTPUT
+          echo "db_user=$DB_USER" >> $GITHUB_OUTPUT
+          echo "db_password=$DB_PASSWORD" >> $GITHUB_OUTPUT
+          echo "terraform_bucket=$BUCKET_NAME" >> $GITHUB_OUTPUT
 
   terraform:
-    name: 'Infrastructure Plan/Apply'
+    name: "Infrastructure Plan/Apply"
     runs-on: ubuntu-latest
-    needs: remote-config
+    needs: bootstrap
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: 'modules/gateway/authorizer/package-lock.json'
+
+      - name: Install Lambda Dependencies
+        run: |
+          cd modules/gateway/authorizer
+          npm install --production
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -63,7 +107,7 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: us-east-1
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -74,8 +118,8 @@ jobs:
       - name: Terraform Init
         run: |
           terraform init \
-            -backend-config="bucket=${{ secrets.TERRAFORM_STATE_BUCKET }}" \
-            -backend-config="region=${{ secrets.AWS_REGION }}"
+            -backend-config="bucket=${{ needs.bootstrap.outputs.terraform_bucket }}" \
+            -backend-config="region=us-east-1"
 
       - name: Terraform Validate
         run: terraform validate
@@ -83,12 +127,11 @@ jobs:
       - name: Terraform Plan
         run: |
           terraform plan -no-color \
-            -var="aws_region=${{ secrets.AWS_REGION }}" \
             -var="lambda_function_name=${{ secrets.LAMBDA_FUNCTION_NAME }}" \
             -var="authorizer_function_name=${{ secrets.AUTHORIZER_FUNCTION_NAME }}" \
-            -var="database_host=${{ needs.remote-config.outputs.db_host }}" \
-            -var="database_user=${{ needs.remote-config.outputs.db_user }}" \
-            -var="database_password=${{ needs.remote-config.outputs.db_password }}" \
+            -var="database_host=${{ needs.bootstrap.outputs.db_host }}" \
+            -var="database_user=${{ needs.bootstrap.outputs.db_user }}" \
+            -var="database_password=${{ needs.bootstrap.outputs.db_password }}" \
             -var="database_port=${{ secrets.DB_PORT }}" \
             -var="database_name=${{ secrets.DB_NAME }}"
 
@@ -96,11 +139,10 @@ jobs:
         if: github.ref == 'refs/heads/main'
         run: |
           terraform apply -auto-approve \
-            -var="aws_region=${{ secrets.AWS_REGION }}" \
             -var="lambda_function_name=${{ secrets.LAMBDA_FUNCTION_NAME }}" \
             -var="authorizer_function_name=${{ secrets.AUTHORIZER_FUNCTION_NAME }}" \
-            -var="database_host=${{ needs.remote-config.outputs.db_host }}" \
-            -var="database_user=${{ needs.remote-config.outputs.db_user }}" \
-            -var="database_password=${{ needs.remote-config.outputs.db_password }}" \
+            -var="database_host=${{ needs.bootstrap.outputs.db_host }}" \
+            -var="database_user=${{ needs.bootstrap.outputs.db_user }}" \
+            -var="database_password=${{ needs.bootstrap.outputs.db_password }}" \
             -var="database_port=${{ secrets.DB_PORT }}" \
             -var="database_name=${{ secrets.DB_NAME }}"

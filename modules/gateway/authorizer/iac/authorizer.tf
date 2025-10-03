@@ -12,46 +12,41 @@ resource "aws_cloudwatch_log_group" "authorizer_lambda_logs" {
   retention_in_days = 1
 }
 
-# Run npm install before zipping
-resource "null_resource" "npm_install" {
+
+
+# Create zip file manually to ensure node_modules is included
+resource "null_resource" "create_lambda_zip" {
   triggers = {
-    package_json = filemd5("${path.module}/../package.json")
-    package_lock = filemd5("${path.module}/../package-lock.json")
+    src_files = sha256(join("", [for f in fileset("${path.module}/../src", "**") : filesha256("${path.module}/../src/${f}")]))
+    always_run = timestamp()
   }
 
   provisioner "local-exec" {
-    command     = "npm install --production"
+    command = "rm -f authorizer-lambda.zip && zip -r authorizer-lambda.zip src/ node_modules/ package.json package-lock.json -x 'iac/*' '__tests__/*' '*.zip' '*.md' 'jest.config.js' 'jest.setup.js' '.babelrc' '.git/*'"
     working_dir = "${path.module}/.."
   }
 }
 
-# Archive the Lambda function code
-data "archive_file" "authorizer_lambda_zip" {
-  type        = "zip"
-  source_dir  = "${path.module}/.."
-  output_path = "${path.module}/../authorizer-lambda.zip"
-  excludes    = [
-    "iac/**",
-    "*.zip",
-    ".git/**"
-  ]
 
-  depends_on = [null_resource.npm_install]
-}
 
 # Lambda function for the authorizer
 resource "aws_lambda_function" "authorizer" {
-  filename         = data.archive_file.authorizer_lambda_zip.output_path
+  filename         = "${path.module}/../authorizer-lambda.zip"
   function_name    = var.authorizer_function_name
   role            = data.aws_iam_role.authorizer_lambda_role.arn
   handler         = "src/index.handler"
   runtime         = "nodejs18.x"
-  timeout         = 10
+  timeout         = 30
 
-  source_code_hash = data.archive_file.authorizer_lambda_zip.output_base64sha256
+  source_code_hash = base64encode(sha256(join("", [
+    filemd5("${path.module}/../package.json"),
+    filemd5("${path.module}/../package-lock.json"),
+    tostring(null_resource.create_lambda_zip.triggers.src_files)
+  ])))
 
   depends_on = [
     aws_cloudwatch_log_group.authorizer_lambda_logs,
+    null_resource.create_lambda_zip,
   ]
 
   environment {

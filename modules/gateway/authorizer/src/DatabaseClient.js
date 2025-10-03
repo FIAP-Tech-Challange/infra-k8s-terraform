@@ -34,6 +34,13 @@ export class DatabaseClient {
      */
     static async initDbClient(config) {
         try {
+            console.log("Initializing DB client with config:", {
+                host: config.host,
+                port: config.port,
+                user: config.user,
+                database: config.database,
+            })
+
             const client = new pg.Client({
                 host: config.host,
                 port: config.port,
