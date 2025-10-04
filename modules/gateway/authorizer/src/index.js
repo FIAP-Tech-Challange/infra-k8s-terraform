@@ -16,6 +16,10 @@ export const handler = async (event) => {
       user: process.env.DB_USER,
     });
 
+    console.log('Testing database connection...');
+    const testResult = await dbClient.query('SELECT 1 as test');
+    console.log('Database connection test successful:', testResult.rows[0]);
+
     const totemId = await verifyTokenWithStoreTotem(token, dbClient);
 
     return {
@@ -81,7 +85,7 @@ async function verifyTokenWithStoreTotem(token, dbClient) {
     console.log('Verifying token with StoreTotem:', token);
 
     const res = await dbClient.query(
-      'SELECT id, token_access from totems WHERE token_access = ?',
+      'SELECT id, token_access from totems WHERE token_access = $1',
       [token]
     );
 

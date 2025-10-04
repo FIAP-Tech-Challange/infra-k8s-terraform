@@ -47,6 +47,9 @@ export class DatabaseClient {
                 user: config.user,
                 password: config.password,
                 database: config.database,
+                ssl: {
+                    rejectUnauthorized: false,
+                },
             });
             await client.connect();
 
