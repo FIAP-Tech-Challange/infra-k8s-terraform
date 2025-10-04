@@ -19,15 +19,15 @@ variable "tags" {
   }
 }
 
-variable "lambda_function_name" {
-  description = "Name of the main Lambda function"
-  type        = string
-}
+# variable "lambda_function_name" {
+#   description = "Name of the main Lambda function"
+#   type        = string
+# }
 
-variable "authorizer_function_name" {
-  description = "Name of the authorizer Lambda function"
-  type        = string
-}
+# variable "authorizer_function_name" {
+#   description = "Name of the authorizer Lambda function"
+#   type        = string
+# }
 
 variable "aws_region" {
   description = "AWS region for resources"
@@ -35,31 +35,31 @@ variable "aws_region" {
   default     = "us-east-1"
 }
 
-variable "database_port" {
-  description = "Port of the database"
-  type        = number
-}
+# variable "database_port" {
+#   description = "Port of the database"
+#   type        = number
+# }
 
-variable "database_host" {
-  description = "Host of the database"
-  type        = string
-}
+# variable "database_host" {
+#   description = "Host of the database"
+#   type        = string
+# }
 
-variable "database_user" {
-  description = "User of the database"
-  type        = string
-}
+# variable "database_user" {
+#   description = "User of the database"
+#   type        = string
+# }
 
-variable "database_password" {
-  description = "Password of the database"
-  type        = string
-  sensitive   = true
-}
+# variable "database_password" {
+#   description = "Password of the database"
+#   type        = string
+#   sensitive   = true
+# }
 
-variable "database_name" {
-  description = "Name of the database"
-  type        = string
-}
+# variable "database_name" {
+#   description = "Name of the database"
+#   type        = string
+# }
 
 # EKS Configuration
 variable "cluster_version" {
@@ -96,17 +96,4 @@ variable "node_disk_size" {
   description = "Disk size in GB for worker nodes"
   type        = number
   default     = 50
-}
-
-variable "principal_user_arn" {
-  description = "ARN of the IAM user/role to grant cluster access"
-  type        = string
-  default     = ""
-}
-
-# S3 Backend
-variable "create_s3_backend" {
-  description = "Whether to create S3 bucket for backend"
-  type        = bool
-  default     = true
 }
