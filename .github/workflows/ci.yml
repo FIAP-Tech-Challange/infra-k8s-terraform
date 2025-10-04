@@ -14,6 +14,7 @@ jobs:
       db_user: ${{ steps.set-outputs.outputs.db_user }}
       db_password: ${{ steps.set-outputs.outputs.db_password }}
       terraform_bucket: ${{ steps.set-outputs.outputs.terraform_bucket }}
+      principal_arn: ${{ steps.set-outputs.outputs.principal_arn }}
 
     steps:
       - name: Checkout
