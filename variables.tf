@@ -27,6 +27,7 @@ variable "lambda_function_name" {
 variable "authorizer_function_name" {
   description = "Name of the authorizer Lambda function"
   type        = string
+  default     = "totem_authorizer_function"
 }
 
 variable "aws_region" {

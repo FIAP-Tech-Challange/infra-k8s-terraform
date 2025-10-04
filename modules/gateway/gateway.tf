@@ -1,4 +1,4 @@
-data "aws_lambda_function" "cpf_validation_function" {
+data "aws_lambda_function" "customer_verification_function" {
   function_name = var.lambda_function_name
 }
 
@@ -22,7 +22,7 @@ resource "aws_apigatewayv2_api" "http_api" {
 resource "aws_apigatewayv2_integration" "lambda_integration" {
   api_id                 = aws_apigatewayv2_api.http_api.id
   integration_type       = "AWS_PROXY"
-  integration_uri        = data.aws_lambda_function.cpf_validation_function.invoke_arn
+  integration_uri        = data.aws_lambda_function.customer_verification_function.invoke_arn
   payload_format_version = "2.0"
 }
 
@@ -36,9 +36,9 @@ resource "aws_apigatewayv2_authorizer" "lambda_authorizer" {
   enable_simple_responses           = true
 }
 
-resource "aws_apigatewayv2_route" "cpf-validation-route" {
+resource "aws_apigatewayv2_route" "customer-check-route" {
   api_id             = aws_apigatewayv2_api.http_api.id
-  route_key          = "POST /cpf-validation"
+  route_key          = "GET /customers/verify"
   target             = "integrations/${aws_apigatewayv2_integration.lambda_integration.id}"
   authorizer_id      = aws_apigatewayv2_authorizer.lambda_authorizer.id
   authorization_type = "CUSTOM"
@@ -47,7 +47,7 @@ resource "aws_apigatewayv2_route" "cpf-validation-route" {
 resource "aws_lambda_permission" "api_gw_invoke" {
   statement_id  = "AllowAPIGatewayInvoke"
   action        = "lambda:InvokeFunction"
-  function_name = data.aws_lambda_function.cpf_validation_function.function_name
+  function_name = data.aws_lambda_function.customer_verification_function.function_name
   principal     = "apigateway.amazonaws.com"
 
   # The source ARN is the ARN of the API Gateway
@@ -64,7 +64,7 @@ resource "aws_lambda_permission" "api_gw_invoke_authorizer" {
 
 resource "aws_apigatewayv2_deployment" "api_deployment" {
   api_id     = aws_apigatewayv2_api.http_api.id
-  depends_on = [aws_apigatewayv2_route.cpf-validation-route]
+  depends_on = [aws_apigatewayv2_route.customer-check-route]
 }
 
 resource "aws_apigatewayv2_stage" "prod_stage" {
@@ -74,5 +74,5 @@ resource "aws_apigatewayv2_stage" "prod_stage" {
 }
 
 output "api_validate_cpf" {
-  value = "${aws_apigatewayv2_stage.prod_stage.invoke_url}/cpf-validation"
+  value = "${aws_apigatewayv2_stage.prod_stage.invoke_url}/customers/verify"
 }

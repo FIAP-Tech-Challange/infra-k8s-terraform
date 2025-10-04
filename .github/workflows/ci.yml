@@ -129,7 +129,6 @@ jobs:
         run: |
           terraform plan -no-color \
             -var="lambda_function_name=${{ secrets.LAMBDA_FUNCTION_NAME }}" \
-            -var="authorizer_function_name=${{ secrets.AUTHORIZER_FUNCTION_NAME }}" \
             -var="database_host=${{ needs.bootstrap.outputs.db_host }}" \
             -var="database_user=${{ needs.bootstrap.outputs.db_user }}" \
             -var="database_password=${{ needs.bootstrap.outputs.db_password }}" \
@@ -141,7 +140,6 @@ jobs:
         run: |
           terraform apply -auto-approve \
             -var="lambda_function_name=${{ secrets.LAMBDA_FUNCTION_NAME }}" \
-            -var="authorizer_function_name=${{ secrets.AUTHORIZER_FUNCTION_NAME }}" \
             -var="database_host=${{ needs.bootstrap.outputs.db_host }}" \
             -var="database_user=${{ needs.bootstrap.outputs.db_user }}" \
             -var="database_password=${{ needs.bootstrap.outputs.db_password }}" \
