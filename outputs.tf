@@ -1,6 +1,6 @@
 output "validate_cpf_endpoint" {
   description = "URL for the validate CPF endpoint"
-  value       = module.gateway.api_validate_cpf
+  value       = module.gateway.api_verify_customer
 }
 
 # EKS Outputs

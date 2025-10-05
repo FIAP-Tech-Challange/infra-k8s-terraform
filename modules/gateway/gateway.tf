@@ -36,7 +36,7 @@ resource "aws_apigatewayv2_authorizer" "lambda_authorizer" {
   enable_simple_responses           = true
 }
 
-resource "aws_apigatewayv2_route" "customer-check-route" {
+resource "aws_apigatewayv2_route" "customer_verify_route" {
   api_id             = aws_apigatewayv2_api.http_api.id
   route_key          = "GET /customers/verify"
   target             = "integrations/${aws_apigatewayv2_integration.lambda_integration.id}"
@@ -44,35 +44,51 @@ resource "aws_apigatewayv2_route" "customer-check-route" {
   authorization_type = "CUSTOM"
 }
 
+# Lambda permission for the main handler function
 resource "aws_lambda_permission" "api_gw_invoke" {
   statement_id  = "AllowAPIGatewayInvoke"
   action        = "lambda:InvokeFunction"
   function_name = data.aws_lambda_function.customer_verification_function.function_name
   principal     = "apigateway.amazonaws.com"
-
-  # The source ARN is the ARN of the API Gateway
-  source_arn = "${aws_apigatewayv2_api.http_api.execution_arn}/*/*"
+  source_arn    = "${aws_apigatewayv2_api.http_api.execution_arn}/*/*/*"
 }
 
+# Lambda permission for the authorizer function
 resource "aws_lambda_permission" "api_gw_invoke_authorizer" {
-  statement_id  = "AllowAPIGatewayInvoke"
+  statement_id  = "AllowAPIGatewayInvokeAuthorizer"
   action        = "lambda:InvokeFunction"
   function_name = module.authorizer.authorizer_function_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.http_api.execution_arn}/authorizers/${aws_apigatewayv2_authorizer.lambda_authorizer.id}"
 }
 
-resource "aws_apigatewayv2_deployment" "api_deployment" {
-  api_id     = aws_apigatewayv2_api.http_api.id
-  depends_on = [aws_apigatewayv2_route.customer-check-route]
+resource "aws_apigatewayv2_stage" "main_stage" {
+  api_id      = aws_apigatewayv2_api.http_api.id
+  name        = "main"
+  auto_deploy = true
+
+  # Optional: Add logging for debugging
+  access_log_settings {
+    destination_arn = aws_cloudwatch_log_group.api_gateway_logs.arn
+    format = jsonencode({
+      requestId        = "$context.requestId"
+      ip              = "$context.identity.sourceIp"
+      requestTime     = "$context.requestTime"
+      httpMethod      = "$context.httpMethod"
+      routeKey        = "$context.routeKey"
+      status          = "$context.status"
+      error           = "$context.error.message"
+      authorizerError = "$context.authorizer.error"
+    })
+  }
 }
 
-resource "aws_apigatewayv2_stage" "prod_stage" {
-  api_id        = aws_apigatewayv2_api.http_api.id
-  name          = "prod"
-  deployment_id = aws_apigatewayv2_deployment.api_deployment.id
+# CloudWatch Log Group for API Gateway logs
+resource "aws_cloudwatch_log_group" "api_gateway_logs" {
+  name              = "/aws/apigateway/api-gateway"
+  retention_in_days = 1
 }
 
-output "api_validate_cpf" {
-  value = "${aws_apigatewayv2_stage.prod_stage.invoke_url}/customers/verify"
+output "api_verify_customer" {
+  value = "${aws_apigatewayv2_stage.main_stage.invoke_url}/customers/verify"
 }
