@@ -1,346 +1,296 @@
-# infra-k8s-terraform
+# 🏗️ Infra K8s Terraform
 
-Código Terraform para provisionamento e configuração de infraestrutura Kubernetes, incluindo clusters, namespaces, roles e políticas de rede.
+Repositório de infraestrutura como código para provisionamento e gerenciamento de clusters Kubernetes na AWS usando Terraform. Este projeto implementa uma arquitetura completa incluindo clusters EKS, API Gateway, Lambda Authorizers e toda a infraestrutura de suporte necessária.
+
+## 🏛️ Arquitetura
+
+O projeto implementa uma arquitetura serverless e containerizada na AWS:
+
+```mermaid
+graph TB
+    Client[Client Applications] --> ALB[Application Load Balancer]
+    ALB --> APIGW[API Gateway]
+    APIGW --> AUTH[Lambda Authorizer]
+    AUTH --> RDS[(PostgreSQL RDS)]
+    APIGW --> EKS[EKS Cluster]
+    EKS --> PODS[Application Pods]
+    PODS --> RDS
+
+    subgraph "AWS Infrastructure"
+        VPC[VPC Default]
+        SUBNETS[Public/Private Subnets]
+        SG[Security Groups]
+        IAM[IAM Roles & Policies]
+    end
+```
+
+### Componentes Principais
+
+- **EKS Cluster**: Orquestração de containers com Kubernetes
+- **API Gateway**: Gerenciamento de APIs e roteamento
+- **Lambda Authorizer**: Autenticação e autorização serverless
+- **PostgreSQL RDS**: Banco de dados relacional
+- **VPC & Networking**: Isolamento e conectividade de rede
 
 ## 📁 Estrutura do Repositório
 
 ```
 infra-k8s-terraform/
-├── main.tf                           # Configuração Terraform principal
-├── variables.tf                      # Variáveis globais do projeto
-├── README.md                         # Documentação principal
-├── run-tests.sh                      # Script para executar todos os testes
-├── .gitignore                        # Arquivos ignorados pelo Git
-├── .github/workflows/                # CI/CD com GitHub Actions
-│   └── gateway-tests.yml            # Pipeline de testes automatizados
-├── gateway/                          # Configuração do API Gateway
-│   ├── gateway.tf                   # Recursos do Gateway
-│   ├── variables.tf                 # Variáveis do Gateway
-│   └── authorizer/                  # Lambda Authorizer
-│       ├── package.json             # Dependências Node.js
-│       ├── package-lock.json        # Lock de dependências
-│       ├── jest.config.js           # Configuração do Jest
-│       ├── jest.setup.js            # Setup global dos testes
-│       ├── .babelrc                 # Configuração Babel (ES modules)
-│       ├── TEST_README.md           # Documentação detalhada dos testes
-│       ├── src/                     # Código fonte do Authorizer
-│       │   ├── index.js             # Handler principal do Lambda
-│       │   ├── DatabaseClient.js    # Cliente PostgreSQL
-│       │   └── Exception.js         # Classes de exceção
-│       ├── __tests__/               # Testes automatizados
-│       │   ├── Exception.test.js    # Testes das exceções
-│       │   ├── DatabaseClient.test.js # Testes do cliente DB
-│       │   ├── index.test.js        # Testes unitários do handler
-│       │   └── integration.test.js  # Testes de integração
-│       ├── coverage/                # Relatórios de cobertura (gerado)
-│       └── iac/                     # Infraestrutura do Authorizer
-│           ├── authorizer.tf        # Recursos Terraform
-│           └── variables.tf         # Variáveis específicas
-└── script/
+├── 📄 main.tf                        # Configuração Terraform principal
+├── 📄 variables.tf                   # Variáveis globais do projeto
+├── 📄 outputs.tf                     # Outputs dos recursos criados
+├── 📄 providers.tf                   # Configuração de providers AWS
+├── 📄 backend.tf                     # Configuração do state remoto
+├── 📄 run-tests.sh                   # Script de execução de testes
+├── 📁 .github/workflows/             # CI/CD Pipelines
+│   ├── gateway-tests.yml            # Pipeline de testes do Gateway
+│   └── terraform-apply.yml          # Pipeline de deploy da infraestrutura
+├── 📁 modules/                       # Módulos Terraform
+│   ├── eks/                         # Módulo do cluster EKS
+│   │   ├── main.tf                  # Configuração do cluster
+│   │   ├── variables.tf             # Variáveis do EKS
+│   │   └── outputs.tf               # Outputs do cluster
+│   └── gateway/                     # Módulo do API Gateway
+│       ├── gateway.tf               # Recursos do Gateway
+│       ├── variables.tf             # Variáveis do Gateway
+│       └── authorizer/              # Lambda Authorizer
+│           ├── 📦 package.json      # Dependências Node.js
+│           ├── 🔧 jest.config.js    # Configuração de testes
+│           ├── 📁 src/              # Código fonte
+│           │   ├── index.js         # Handler principal
+│           │   ├── DatabaseClient.js # Cliente PostgreSQL
+│           │   └── Exception.js     # Classes de exceção
+│           ├── 📁 __tests__/        # Suite de testes
+│           │   ├── Exception.test.js
+│           │   ├── DatabaseClient.test.js
+│           │   ├── index.test.js
+│           │   └── integration.test.js
+│           └── 📁 iac/              # Infraestrutura do Authorizer
+│               ├── authorizer.tf
+│               └── variables.tf
+└── 📁 scripts/
     └── bootstrap.sh                 # Script de inicialização
 ```
 
-## 🧪 Executando os Testes
+## 🔒 Segurança e Proteção de Branch
 
-### Método 1: Script Automático (Recomendado)
+### Proteção da Branch Main
 
-Execute todos os testes e validações de uma vez:
+A branch `main` está protegida com as seguintes regras de segurança:
 
-```bash
-# Dar permissão de execução (primeira vez)
-chmod +x run-tests.sh
+- 🚫 **Push direto bloqueado**: Não é possível fazer push direto para main
+- ✅ **Pull Request obrigatório**: Todas as mudanças devem passar por PR
+- 🔍 **Review obrigatório**: Pelo menos 1 aprovação necessária
+- 🧪 **Testes obrigatórios**: Todos os checks do CI/CD devem passar
+- 📋 **Status checks**: Pipeline de testes deve ser bem-sucedida
+- 🔄 **Branch atualizada**: PR deve estar sincronizada com main
 
-# Executar todos os testes
-./run-tests.sh
+### Fluxo de Trabalho Seguro
+
+```mermaid
+graph LR
+    DEV[Feature Branch] --> PR[Pull Request]
+    PR --> TESTS[CI/CD Tests]
+    TESTS --> REVIEW[Code Review]
+    REVIEW --> MERGE[Merge to Main]
+    MERGE --> DEPLOY[Auto Deploy]
 ```
 
-Este script executa:
+## 🤖 CI/CD Workflows
 
-- ✅ Testes unitários do Authorizer
-- ✅ Testes de integração
-- ✅ Cobertura de código
-- ✅ Validação Terraform
-- ✅ Verificação de formatação
+### Pipeline de Testes (`gateway-tests.yml`)
 
-### Método 2: Testes Específicos do Gateway Authorizer
-
-```bash
-# Navegar para o diretório do authorizer
-cd gateway/authorizer
-
-# Instalar dependências (primeira vez)
-npm install
-
-# Executar testes
-npm test
-
-# Testes em modo watch (desenvolvimento)
-npm run test:watch
-
-# Testes com cobertura de código
-npm run test:coverage
-```
-
-### Método 3: Validação Manual do Terraform
-
-```bash
-# Verificar formatação de todos os arquivos
-terraform fmt -check -recursive
-
-# Validar configuração principal
-terraform init -backend=false
-terraform validate
-
-# Validar gateway
-cd gateway
-terraform init -backend=false
-terraform validate
-
-# Validar authorizer IAC
-cd authorizer/iac
-terraform init -backend=false
-terraform validate
-```
-
-## 📊 Cobertura de Testes
-
-Os testes do Gateway Authorizer apresentam excelente cobertura:
-
-- ✅ **95.5%** cobertura geral do código
-- ✅ **100%** cobertura de funções
-- ✅ **87.5%** cobertura de branches
-- ✅ **31 testes** passando
-- ✅ **4 suítes** de teste
-
-### Tipos de Teste Implementados
-
-1. **Testes Unitários**
-
-   - Validação de tokens
-   - Conexão com banco de dados
-   - Classes de exceção
-   - Handler principal do Lambda
-
-2. **Testes de Integração**
-
-   - Fluxo completo de autorização
-   - Cenários de erro
-   - Edge cases
-
-3. **Mocks e Simulações**
-   - Cliente PostgreSQL
-   - Variáveis de ambiente
-   - Respostas de banco
-
-## 📈 Relatórios de Cobertura
-
-Após executar os testes com cobertura, acesse:
-
-```bash
-# Abrir relatório HTML no navegador
-open gateway/authorizer/coverage/lcov-report/index.html
-
-# Ou no Linux
-xdg-open gateway/authorizer/coverage/lcov-report/index.html
-```
-
-## 🤖 CI/CD Automático
-
-O pipeline do GitHub Actions executa automaticamente quando:
+**Triggers:**
 
 - 📤 Push para `main` ou `develop`
-- 🔄 Pull request criado/atualizado
+- 🔄 Pull Request para `main` ou `develop`
 - 📁 Modificações na pasta `gateway/`
 
-### Matriz de Testes
+**Configuração:**
 
-- ✅ Node.js 18.x
-- ✅ Node.js 20.x
-- ✅ Ubuntu Latest
-- ✅ Validação Terraform
-- ✅ Upload para Codecov
+- Node.js 20.x
+- Ubuntu Latest
+- Working directory: `./gateway/authorizer`
 
-## 🛠️ Tecnologias Utilizadas
+**Steps do Pipeline:**
 
-### Infraestrutura
-
-- **Terraform** - Infraestrutura como código
-- **AWS Lambda** - Função serverless
-- **API Gateway** - Gateway de APIs
-- **PostgreSQL** - Banco de dados
-
-### Testes
-
-- **Jest** - Framework de testes
-- **Babel** - Transpilação ES modules
-- **GitHub Actions** - CI/CD
-- **Codecov** - Relatórios de cobertura
-
-## 🚀 Começando
-
-1. **Clone o repositório**
-
-   ```bash
-   git clone https://github.com/FIAP-Tech-Challange/infra-k8s-terraform.git
-   cd infra-k8s-terraform
-   ```
-
-2. **Execute os testes**
-
-   ```bash
-   ./run-tests.sh
-   ```
-
-3. **Desenvolva com confiança!** 🎉
-
-## TODO - Optional State Locking
-
-For team collaboration and CI/CD safety, consider adding DynamoDB state locking (~$0.25/month cost).
-
-# EKS Cluster com Terraform
-
-Este projeto cria um cluster Amazon EKS usando Terraform.
-
-## 📋 Pré-requisitos
-
-- AWS CLI configurado
-- Terraform instalado
-- Conta AWS Academy ou permissões adequadas
-
-## 🚀 Como usar
-
-### 1. Configurar variáveis
-Edite o arquivo `terraform.tfvars`:
-```hcl
-# ARN do usuário/role para acesso ao cluster EKS
-principal_user_arn = "arn:aws:iam::SUA-CONTA:root"
+```yaml
+1. 🔄 Checkout repository
+2. ⚙️ Setup Node.js 20.x
+3. 📦 Install dependencies (npm ci)
+4. 🧪 Run tests (npm test)
+5. 📊 Run tests with coverage
+6. ☁️ Upload coverage to Codecov
 ```
 
-### 2. Aplicar a infraestrutura
-```bash
-# Inicializar o Terraform
-terraform init
+### Pipeline de Infraestrutura (`ci.yml`)
 
-# Verificar o plano
-terraform plan
+**Triggers:**
 
-# Aplicar as mudanças
-terraform apply
+- ✅ Push para branch `main` apenas
+
+**Jobs:**
+
+#### 1. Bootstrap Job
+
+```yaml
+1. 🔄 Checkout do código
+2. 🔐 Configure AWS Credentials
+3. 🪣 Create S3 Bucket for Terraform State
+4. 🔍 Get remote config from SSM
+5. 📤 Set outputs for next job
 ```
 
-### 3. Configurar kubectl
-Após a criação do cluster, configure o kubectl:
+#### 2. Terraform Job
 
-**⚠️ IMPORTANTE: Execute estes comandos na ordem correta:**
-
-```bash
-# 1. Configurar credenciais AWS (se necessário)
-aws configure list
-
-# 2. Atualizar kubeconfig para o cluster EKS
-aws eks update-kubeconfig --region us-east-1 --name eks-tc-3-f106
-
-# 3. Verificar se a configuração funcionou
-kubectl config get-contexts
-
-# 4. Testar a conexão
-kubectl get svc
+```yaml
+1. 🔄 Checkout do código
+2. ⚙️ Setup Node.js 18
+3. 📦 Install Lambda Dependencies
+4. 🔐 Configure AWS Credentials
+5. 🏗️ Setup Terraform
+6. � Terraform Format Check
+7. 🚀 Terraform Init (with S3 backend)
+8. ✅ Terraform Validate
+9. 📋 Terraform Plan
+10. 🚀 Terraform Apply (only on main)
 ```
 
-### 4. Verificar o cluster
-```bash
-# Verificar nodes (após configurar kubectl)
-kubectl get nodes
+### Fluxo de Deploy Automatizado
 
-# Verificar pods do sistema
-kubectl get pods -A
+```mermaid
+graph TB
+    PUSH[Push to main] --> BOOTSTRAP[Bootstrap Job]
+    BOOTSTRAP --> S3[Create S3 Bucket]
+    BOOTSTRAP --> SSM[Get SSM Parameters]
+    BOOTSTRAP --> TF[Terraform Job]
+    TF --> PLAN[Terraform Plan]
+    PLAN --> APPLY[Terraform Apply]
+    APPLY --> DEPLOY[Infrastructure Deployed]
+
+    subgraph "AWS Resources Created"
+        EKS[EKS Cluster]
+        LAMBDA[Lambda Authorizer]
+        APIGW[API Gateway]
+        RDS[RDS PostgreSQL]
+    end
 ```
 
-## 📊 Recursos criados
+## 🔐 Secrets e Variáveis
 
-- **EKS Cluster**: `eks-tc-3-f106`
-- **Node Group**: `nodeg-tc-3-f106`
-- **Instâncias**: 1-3 nodes t3.medium
-- **VPC**: Usa a VPC default da AWS
-- **Subnets**: Usa subnets existentes da VPC default
+### Repository Secrets
 
-## 🔧 Configurações
+| Secret                  | Descrição                 | Uso                     | Workflow |
+| ----------------------- | ------------------------- | ----------------------- | -------- |
+| `AWS_ACCESS_KEY_ID`     | Chave de acesso AWS       | Autenticação AWS        | `ci.yml` |
+| `AWS_SECRET_ACCESS_KEY` | Chave secreta AWS         | Autenticação AWS        | `ci.yml` |
+| `AWS_SESSION_TOKEN`     | Token de sessão AWS       | Autenticação temporária | `ci.yml` |
+| `LAMBDA_FUNCTION_NAME`  | Nome da função Lambda     | Deploy do Authorizer    | `ci.yml` |
+| `DB_PORT`               | Porta do banco PostgreSQL | Configuração de conexão | `ci.yml` |
+| `DB_NAME`               | Nome do banco de dados    | Configuração de conexão | `ci.yml` |
 
-| Variável | Descrição | Padrão |
-|----------|-----------|---------|
-| `project_name` | Nome do projeto | `tc-3-f106` |
-| `cluster_version` | Versão do Kubernetes | `1.31` |
-| `instance_type` | Tipo da instância | `t3.medium` |
-| `node_group_desired_size` | Número desejado de nodes | `1` |
-| `node_group_max_size` | Número máximo de nodes | `3` |
-| `node_group_min_size` | Número mínimo de nodes | `1` |
+### Environment Variables (CI/CD)
 
-## 🧹 Limpeza
+| Variável      | Descrição         | Valor                              | Fonte     |
+| ------------- | ----------------- | ---------------------------------- | --------- |
+| `AWS_REGION`  | Região AWS padrão | `us-east-1`                        | Hardcoded |
+| `DB_HOST`     | Endpoint do RDS   | SSM Parameter `/main/rds_endpoint` | AWS SSM   |
+| `DB_USER`     | Usuário do banco  | SSM Parameter `/main/db_username`  | AWS SSM   |
+| `DB_PASSWORD` | Senha do banco    | SSM Parameter `/main/db_password`  | AWS SSM   |
 
-Para destruir todos os recursos:
-```bash
-terraform destroy
-```
+### AWS SSM Parameters
 
-## 📁 Estrutura do projeto
-
-```
-├── main.tf              # Configuração principal
-├── variables.tf         # Variáveis do projeto
-├── outputs.tf          # Outputs
-├── providers.tf        # Providers AWS
-├── terraform.tfvars    # Valores das variáveis
-└── modules/
-    └── eks/            # Módulo EKS
-        ├── main.tf     # Cluster + Node Group
-        ├── variables.tf
-        └── outputs.tf
-```
-
-## ⚠️ Notas importantes
-
-- **AWS Academy**: Usa `LabRole` existente (sem criar roles IAM)
-- **VPC Default**: Utiliza a VPC padrão da conta AWS
-- **Subnets**: Usa subnets existentes (sem criar novas)
-- **Simplicidade**: Configuração mínima para funcionamento
-
-## 🆘 Troubleshooting
-
-### ❌ Erro: "the server has asked for the client to provide credentials"
-
-**Causa**: kubectl não está configurado corretamente para o cluster EKS.
-
-**Soluções** (tente na ordem):
-
-#### Solução 1 - Reconfiguração básica:
-```bash
-# 1. Verificar se AWS CLI está configurado
-aws sts get-caller-identity
-
-# 2. Reconfigurar kubectl para EKS
-aws eks update-kubeconfig --region us-east-1 --name eks-tc-3-f106
-
-# 3. Verificar se funcionou
-kubectl get svc
-```
-
-## 📚 Comandos úteis
+O projeto utiliza AWS Systems Manager Parameter Store para gerenciar configurações:
 
 ```bash
-# Ver informações do cluster
-aws eks describe-cluster --name eks-tc-3-f106
-
-# Ver nodes do cluster
-kubectl get nodes -o wide
-
-# Ver todos os recursos
-kubectl get all -A
-
-# Deletar um pod
-kubectl delete pod NOME-DO-POD
-
-# Ver logs de um pod
-kubectl logs NOME-DO-POD
+# Parâmetros obrigatórios no SSM
+/main/rds_endpoint     # Endpoint do banco RDS
+/main/db_username      # Nome de usuário do banco
+/main/db_password      # Senha do banco (SecureString)
 ```
+
+### Configuração de Secrets
+
+```bash
+# GitHub CLI - Configurar secrets obrigatórios
+gh secret set AWS_ACCESS_KEY_ID --body="AKIA..."
+gh secret set AWS_SECRET_ACCESS_KEY --body="your-secret-key"
+gh secret set AWS_SESSION_TOKEN --body="your-session-token"
+gh secret set LAMBDA_FUNCTION_NAME --body="tc-3-f106-authorizer"
+gh secret set DB_PORT --body="5432"
+gh secret set DB_NAME --body="postgres"
+gh secret set CODECOV_TOKEN --body="your-codecov-token"
+```
+
+### Configuração AWS SSM
+
+```bash
+# Configurar parâmetros no AWS SSM
+aws ssm put-parameter --name "/main/rds_endpoint" --value "your-rds-endpoint.amazonaws.com" --type "String"
+aws ssm put-parameter --name "/main/db_username" --value "postgres" --type "String"
+aws ssm put-parameter --name "/main/db_password" --value "your-secure-password" --type "SecureString"
+```
+
+## � Qualidade e Cobertura
+
+### Testes Automatizados
+
+- ✅ **31 testes** executados com sucesso
+- ✅ **92.3%** cobertura de statements
+- ✅ **81.25%** cobertura de branches
+- ✅ **100%** cobertura de funções
+- ✅ **4 suítes** de teste (unitários e integração)
+
+### Tipos de Teste
+
+| Tipo           | Descrição                          | Cobertura                                |
+| -------------- | ---------------------------------- | ---------------------------------------- |
+| **Unitários**  | Validação de componentes isolados  | `DatabaseClient`, `Exception`, `Handler` |
+| **Integração** | Fluxo completo de autorização      | Token validation, DB queries             |
+| **Mocks**      | Simulação de dependências externas | PostgreSQL, Environment vars             |
+
+## 🛠️ Stack Tecnológica
+
+### Infrastructure as Code
+
+- **Terraform** `~> 1.5` - Provisionamento de infraestrutura
+- **AWS Provider** `~> 5.0` - Recursos AWS
+
+### Compute & Serverless
+
+- **Amazon EKS** `1.31` - Kubernetes cluster gerenciado
+- **AWS Lambda** - Authorizer serverless
+- **API Gateway** - Gerenciamento de APIs
+
+### Database & Storage
+
+- **Amazon RDS PostgreSQL** - Banco de dados relacional
+- **Amazon S3** - Terraform state storage
+
+### Testing & Quality
+
+- **Jest** `^29.0` - Framework de testes JavaScript
+- **Babel** `^7.0` - Transpilação ES modules
+- **Codecov** - Cobertura de código
+
+### CI/CD & DevOps
+
+- **GitHub Actions** - Pipelines automatizados
+- **Terraform Cloud** - State management
+- **AWS CLI** - Deployment automation
+
+---
+
+## 🏗️ Recursos Provisionados
+
+Este projeto provisiona automaticamente:
+
+- **🏠 VPC & Networking**: VPC default, subnets públicas/privadas, security groups
+- **⚙️ EKS Cluster**: Cluster Kubernetes gerenciado (`eks-tc-3-f106`)
+- **🔧 Worker Nodes**: Node group com 1-3 instâncias t3.medium
+- **🔌 API Gateway**: Gateway REST com custom authorizer
+- **⚡ Lambda Functions**: Authorizer function com PostgreSQL integration
+- **💾 RDS PostgreSQL**: Banco de dados para autenticação
+- **🔐 IAM Roles**: Roles e políticas para todos os componentes
 
 ---
