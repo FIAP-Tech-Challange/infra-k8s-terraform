@@ -43,7 +43,6 @@ describe('Authorizer Integration Tests', () => {
 
   describe('Complete authorization flow', () => {
     it('should successfully authorize valid totem token', async () => {
-      // Setup
       const validToken = 'totem-abc-123';
       const event = {
         headers: {
@@ -73,7 +72,7 @@ describe('Authorizer Integration Tests', () => {
 
       expect(mockPgClient.connect).toHaveBeenCalledTimes(1);
       expect(mockPgClient.query).toHaveBeenCalledWith(
-        'SELECT id, token_access from totems WHERE token_access = ?',
+        'SELECT id, token_access from totems WHERE token_access = $1',
         [validToken]
       );
     });
@@ -103,7 +102,7 @@ describe('Authorizer Integration Tests', () => {
 
       expect(mockPgClient.connect).toHaveBeenCalledTimes(1);
       expect(mockPgClient.query).toHaveBeenCalledWith(
-        'SELECT id, token_access from totems WHERE token_access = ?',
+        'SELECT id, token_access from totems WHERE token_access = $1',
         [invalidToken]
       );
     });

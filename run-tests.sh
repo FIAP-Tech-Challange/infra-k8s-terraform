@@ -33,17 +33,17 @@ print_error() {
 }
 
 # Verificar se estamos no diretório correto
-if [[ ! -f "main.tf" ]] || [[ ! -d "gateway" ]]; then
+if [[ ! -f "main.tf" ]] || [[ ! -d "modules" ]]; then
     print_error "Execute este script no diretório raiz do projeto (onde está o main.tf)"
     exit 1
 fi
 
 # 1. Testes do Node.js (Authorizer)
 print_status "Executando testes do Gateway Authorizer..."
-cd gateway/authorizer
+cd modules/gateway/authorizer
 
 if [[ ! -f "package.json" ]]; then
-    print_error "package.json não encontrado no diretório gateway/authorizer"
+    print_error "package.json não encontrado no diretório modules/gateway/authorizer"
     exit 1
 fi
 
@@ -63,7 +63,7 @@ npm run test:coverage
 print_success "Testes do Node.js concluídos com sucesso!"
 
 # Voltar para o diretório raiz
-cd ../..
+cd ../../..
 
 # 2. Validação do Terraform
 print_status "Validando arquivos Terraform..."
@@ -93,7 +93,7 @@ else
     
     # Validar gateway
     print_status "Validando Gateway Terraform..."
-    cd gateway
+    cd modules/gateway
     terraform init -backend=false > /dev/null 2>&1 || true
     if terraform validate; then
         print_success "Gateway Terraform válido"
@@ -106,16 +106,16 @@ else
     
     # Validar authorizer IAC
     print_status "Validando Authorizer IAC..."
-    cd gateway/authorizer/iac
+    cd modules/gateway/authorizer/iac
     terraform init -backend=false > /dev/null 2>&1 || true
     if terraform validate; then
         print_success "Authorizer IAC válido"
     else
         print_error "Authorizer IAC inválido"
-        cd ../../..
+        cd ../../../..
         exit 1
     fi
-    cd ../../..
+    cd ../../../..
 fi
 
 # 3. Verificações adicionais
@@ -126,8 +126,8 @@ test_files=$(find . -name "*.test.js" -o -name "*.spec.js" | wc -l)
 print_status "Encontrados $test_files arquivos de teste"
 
 # Verificar cobertura
-if [[ -f "gateway/authorizer/coverage/lcov-report/index.html" ]]; then
-    print_success "Relatório de cobertura gerado em: gateway/authorizer/coverage/lcov-report/index.html"
+if [[ -f "modules/gateway/authorizer/coverage/lcov-report/index.html" ]]; then
+    print_success "Relatório de cobertura gerado em: modules/gateway/authorizer/coverage/lcov-report/index.html"
 fi
 
 # Relatório final
@@ -146,5 +146,5 @@ fi
 
 echo ""
 print_status "Para ver o relatório de cobertura, abra:"
-print_status "  gateway/authorizer/coverage/lcov-report/index.html"
+print_status "  modules/gateway/authorizer/coverage/lcov-report/index.html"
 echo "==========================================="
