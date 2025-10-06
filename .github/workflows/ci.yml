@@ -128,7 +128,6 @@ jobs:
         run: |
           terraform plan -no-color \
             -var="lambda_function_name=${{ secrets.LAMBDA_FUNCTION_NAME }}" \
-            -var="authorizer_function_name=${{ secrets.AUTHORIZER_FUNCTION_NAME }}" \
             -var="database_host=${{ needs.bootstrap.outputs.db_host }}" \
             -var="database_user=${{ needs.bootstrap.outputs.db_user }}" \
             -var="database_password=${{ needs.bootstrap.outputs.db_password }}" \
@@ -140,7 +139,6 @@ jobs:
         run: |
           terraform apply -auto-approve \
             -var="lambda_function_name=${{ secrets.LAMBDA_FUNCTION_NAME }}" \
-            -var="authorizer_function_name=${{ secrets.AUTHORIZER_FUNCTION_NAME }}" \
             -var="database_host=${{ needs.bootstrap.outputs.db_host }}" \
             -var="database_user=${{ needs.bootstrap.outputs.db_user }}" \
             -var="database_password=${{ needs.bootstrap.outputs.db_password }}" \
@@ -165,6 +163,16 @@ jobs:
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
           aws-region: us-east-1
 
+      - name: Install AWS CLI if running in act
+        if: env.ACT == 'true'
+        run: |
+          echo "Running under act, installing AWS CLI..."
+          sudo apt-get update -y
+          sudo apt-get install -y unzip curl less
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+          unzip -q awscliv2.zip
+          sudo ./aws/install
+
       - name: Install kubectl
         uses: azure/setup-kubectl@v3
         with:
@@ -175,17 +183,17 @@ jobs:
           # Get AWS Account ID
           AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
           CLUSTER_NAME="eks-tc-3-f106"
-          
+
           echo "Configuring kubectl for cluster: $CLUSTER_NAME"
           echo "AWS Account ID: $AWS_ACCOUNT_ID"
-          
+
           # Update kubeconfig
           aws eks update-kubeconfig --region us-east-1 --name $CLUSTER_NAME
-          
+
           # Wait for cluster to be ready
           echo "Waiting for cluster to be active..."
           aws eks wait cluster-active --region us-east-1 --name $CLUSTER_NAME
-          
+
           # Apply aws-auth ConfigMap
           echo "Applying aws-auth ConfigMap..."
           kubectl apply -f - <<EOF
@@ -206,7 +214,7 @@ jobs:
                 groups:
                   - system:masters
           EOF
-          
+
           # Verify cluster access
           echo "Verifying cluster access..."
           kubectl get nodes
