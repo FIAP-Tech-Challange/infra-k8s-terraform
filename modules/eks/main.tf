@@ -12,9 +12,6 @@ data "aws_iam_role" "lab_role" {
   name = "LabRole"
 }
 
-# Use LabRole for nodes as well (AWS Academy limitation)
-# Note: LabRole typically has all necessary policies attached
-
 # EKS Cluster
 resource "aws_eks_cluster" "cluster" {
   name     = "eks-${var.project_name}"
@@ -81,6 +78,3 @@ resource "aws_eks_node_group" "node_group" {
     Name = "nodeg-${var.project_name}"
   })
 }
-
-# ConfigMap aws-auth will be configured via GitHub Actions workflow
-# No need for access entries when using CONFIG_MAP authentication mode
