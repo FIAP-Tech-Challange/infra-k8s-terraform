@@ -43,3 +43,7 @@ module "eks" {
   node_disk_size          = var.node_disk_size
   tags                    = var.tags
 }
+
+module "ecr" {
+  source = "./modules/ecr"
+}

@@ -23,3 +23,8 @@ output "cluster_security_group_id" {
   description = "Security group ID attached to the cluster control plane"
   value       = module.eks.cluster_security_group_id
 }
+
+output "ecr_repository_url" {
+  description = "URL for the ECR repository"
+  value       = module.ecr.ecr_repository_url
+}
