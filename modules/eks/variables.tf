@@ -51,12 +51,6 @@ variable "node_disk_size" {
   default     = 50
 }
 
-variable "principal_user_arn" {
-  description = "ARN of the IAM user to grant cluster access"
-  type        = string
-  default     = ""
-}
-
 variable "tags" {
   description = "A map of tags to assign to the resources"
   type        = map(string)

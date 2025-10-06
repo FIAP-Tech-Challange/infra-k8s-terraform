@@ -22,7 +22,8 @@ resource "aws_eks_cluster" "cluster" {
   role_arn = data.aws_iam_role.lab_role.arn
 
   access_config {
-    authentication_mode = "API"
+    authentication_mode                         = "CONFIG_MAP"
+    bootstrap_cluster_creator_admin_permissions = true
   }
 
   vpc_config {
@@ -81,22 +82,5 @@ resource "aws_eks_node_group" "node_group" {
   })
 }
 
-# EKS Access Entry (only if principal user is provided)
-resource "aws_eks_access_entry" "access_entry" {
-  count             = var.principal_user_arn != "" ? 1 : 0
-  cluster_name      = aws_eks_cluster.cluster.name
-  principal_arn     = var.principal_user_arn
-  kubernetes_groups = ["${var.project_name}-group1", "${var.project_name}-group2"]
-  type              = "STANDARD"
-}
-
-resource "aws_eks_access_policy_association" "access_entry_association" {
-  count         = var.principal_user_arn != "" ? 1 : 0
-  cluster_name  = aws_eks_cluster.cluster.name
-  policy_arn    = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
-  principal_arn = var.principal_user_arn
-
-  access_scope {
-    type = "cluster"
-  }
-}
+# ConfigMap aws-auth will be configured via GitHub Actions workflow
+# No need for access entries when using CONFIG_MAP authentication mode

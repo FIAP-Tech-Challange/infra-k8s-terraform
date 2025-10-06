@@ -14,7 +14,6 @@ jobs:
       db_user: ${{ steps.set-outputs.outputs.db_user }}
       db_password: ${{ steps.set-outputs.outputs.db_password }}
       terraform_bucket: ${{ steps.set-outputs.outputs.terraform_bucket }}
-      principal_arn: ${{ steps.set-outputs.outputs.principal_arn }}
 
     steps:
       - name: Checkout
@@ -129,6 +128,7 @@ jobs:
         run: |
           terraform plan -no-color \
             -var="lambda_function_name=${{ secrets.LAMBDA_FUNCTION_NAME }}" \
+            -var="authorizer_function_name=${{ secrets.AUTHORIZER_FUNCTION_NAME }}" \
             -var="database_host=${{ needs.bootstrap.outputs.db_host }}" \
             -var="database_user=${{ needs.bootstrap.outputs.db_user }}" \
             -var="database_password=${{ needs.bootstrap.outputs.db_password }}" \
@@ -140,8 +140,74 @@ jobs:
         run: |
           terraform apply -auto-approve \
             -var="lambda_function_name=${{ secrets.LAMBDA_FUNCTION_NAME }}" \
+            -var="authorizer_function_name=${{ secrets.AUTHORIZER_FUNCTION_NAME }}" \
             -var="database_host=${{ needs.bootstrap.outputs.db_host }}" \
             -var="database_user=${{ needs.bootstrap.outputs.db_user }}" \
             -var="database_password=${{ needs.bootstrap.outputs.db_password }}" \
             -var="database_port=${{ secrets.DB_PORT }}" \
             -var="database_name=${{ secrets.DB_NAME }}"
+
+  configure-eks:
+    name: "Configure EKS Cluster"
+    runs-on: ubuntu-latest
+    needs: [bootstrap, terraform]
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: us-east-1
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.31.0'
+
+      - name: Configure kubectl for EKS
+        run: |
+          # Get AWS Account ID
+          AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          CLUSTER_NAME="eks-tc-3-f106"
+          
+          echo "Configuring kubectl for cluster: $CLUSTER_NAME"
+          echo "AWS Account ID: $AWS_ACCOUNT_ID"
+          
+          # Update kubeconfig
+          aws eks update-kubeconfig --region us-east-1 --name $CLUSTER_NAME
+          
+          # Wait for cluster to be ready
+          echo "Waiting for cluster to be active..."
+          aws eks wait cluster-active --region us-east-1 --name $CLUSTER_NAME
+          
+          # Apply aws-auth ConfigMap
+          echo "Applying aws-auth ConfigMap..."
+          kubectl apply -f - <<EOF
+          apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: aws-auth
+            namespace: kube-system
+          data:
+            mapRoles: |
+              - rolearn: arn:aws:iam::$AWS_ACCOUNT_ID:role/LabRole
+                username: system:node:{{EC2PrivateDNSName}}
+                groups:
+                  - system:bootstrappers
+                  - system:nodes
+              - rolearn: arn:aws:iam::$AWS_ACCOUNT_ID:role/LabRole
+                username: admin
+                groups:
+                  - system:masters
+          EOF
+          
+          # Verify cluster access
+          echo "Verifying cluster access..."
+          kubectl get nodes
+          kubectl get pods --all-namespaces
