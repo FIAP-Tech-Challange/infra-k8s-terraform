@@ -10,7 +10,6 @@ import { handler } from '../src/index.js';
 import { DatabaseClient } from '../src/DatabaseClient.js';
 import { TotemInvalidOrNotFound } from '../src/Exception.js';
 
-// Mock do DatabaseClient
 jest.mock('../src/DatabaseClient.js', () => ({
   DatabaseClient: {
     initDbClient: jest.fn(),
@@ -74,7 +73,7 @@ describe('Authorizer Handler', () => {
       });
 
       expect(mockDbClient.query).toHaveBeenCalledWith(
-        'SELECT id, token_access from totems WHERE token_access = ?',
+        'SELECT id, token_access from totems WHERE token_access = $1',
         ['valid-token-123']
       );
     });

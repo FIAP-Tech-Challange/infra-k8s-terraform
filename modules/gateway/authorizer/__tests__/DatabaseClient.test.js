@@ -82,6 +82,9 @@ describe('DatabaseClient', () => {
         user: validConfig.user,
         password: validConfig.password,
         database: validConfig.database,
+        ssl: {
+          rejectUnauthorized: false,
+        },
       });
     });
   });
