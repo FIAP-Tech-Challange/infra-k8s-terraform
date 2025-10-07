@@ -7,7 +7,7 @@ on:
 
 jobs:
   bootstrap:
-    name: "Bootstrap the application"
+    name: "🚀 Bootstrap the application"
     runs-on: ubuntu-latest
     outputs:
       db_host: ${{ steps.set-outputs.outputs.db_host }}
@@ -16,10 +16,10 @@ jobs:
       terraform_bucket: ${{ steps.set-outputs.outputs.terraform_bucket }}
 
     steps:
-      - name: Checkout
+      - name: 📥 Checkout
         uses: actions/checkout@v4
 
-      - name: Configure AWS Credentials
+      - name: 🔑 Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -27,7 +27,7 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
-      - name: Install AWS CLI if running in act
+      - name: 📦 Install AWS CLI if running in act
         if: env.ACT == 'true'
         run: |
           echo "Running under act, installing AWS CLI..."
@@ -37,7 +37,7 @@ jobs:
           unzip -q awscliv2.zip
           sudo ./aws/install
 
-      - name: Create S3 Bucket for Terraform State
+      - name: 🪣 Create S3 Bucket for Terraform State
         id: bootstrap
         run: |
           BUCKET_PREFIX="terraform-state"
@@ -61,7 +61,7 @@ jobs:
           echo "Bootstrap finished. Bucket: $BUCKET_NAME"
           echo "BUCKET_NAME=$BUCKET_NAME" >> $GITHUB_ENV
 
-      - name: Get remote config from SSM
+      - name: 🔐 Get remote config from SSM
         id: get-params
         run: |
           DB_HOST=$(aws ssm get-parameter --name "/main/rds_endpoint" --with-decryption --query "Parameter.Value" --output text)
@@ -71,8 +71,11 @@ jobs:
           echo "DB_HOST=$DB_HOST" >> $GITHUB_ENV
           echo "DB_USER=$DB_USER" >> $GITHUB_ENV
           echo "DB_PASSWORD=$DB_PASSWORD" >> $GITHUB_ENV
+          # Mask sensitive fields in logs
+          echo "::add-mask::$DB_HOST"
+          echo "::add-mask::$DB_PASSWORD"
 
-      - name: Set outputs
+      - name: 📤 Set outputs
         id: set-outputs
         run: |
           echo "db_host=$DB_HOST" >> $GITHUB_OUTPUT
@@ -81,27 +84,27 @@ jobs:
           echo "terraform_bucket=$BUCKET_NAME" >> $GITHUB_OUTPUT
 
   terraform:
-    name: "Infrastructure Plan/Apply"
+    name: "🏗️ Infrastructure Plan/Apply"
     runs-on: ubuntu-latest
     needs: bootstrap
 
     steps:
-      - name: Checkout
+      - name: 📥 Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: 🟢 Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
-          cache: 'npm'
-          cache-dependency-path: 'modules/gateway/authorizer/package-lock.json'
+          node-version: "18"
+          cache: "npm"
+          cache-dependency-path: "modules/gateway/authorizer/package-lock.json"
 
-      - name: Install Lambda Dependencies
+      - name: 📦 Install Lambda Dependencies
         run: |
           cd modules/gateway/authorizer
           npm install --production
 
-      - name: Configure AWS Credentials
+      - name: 🔑 Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -109,22 +112,22 @@ jobs:
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
           aws-region: us-east-1
 
-      - name: Setup Terraform
+      - name: ⚙️ Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
-      - name: Terraform Format Check
+      - name: 🎨 Terraform Format Check
         run: terraform fmt -check
 
-      - name: Terraform Init
+      - name: 🔄 Terraform Init
         run: |
           terraform init \
             -backend-config="bucket=${{ needs.bootstrap.outputs.terraform_bucket }}" \
             -backend-config="region=us-east-1"
 
-      - name: Terraform Validate
+      - name: ✅ Terraform Validate
         run: terraform validate
 
-      - name: Terraform Plan
+      - name: 📋 Terraform Plan
         run: |
           terraform plan -no-color \
             -var="lambda_function_name=${{ secrets.LAMBDA_FUNCTION_NAME }}" \
@@ -135,7 +138,7 @@ jobs:
             -var="database_name=${{ secrets.DB_NAME }}" \
             -var="authorizer_key=${{ secrets.AUTHORIZER_KEY }}"
 
-      - name: Terraform Apply
+      - name: 🚀 Terraform Apply
         if: github.ref == 'refs/heads/main'
         run: |
           terraform apply -auto-approve \
@@ -148,16 +151,16 @@ jobs:
             -var="authorizer_key=${{ secrets.AUTHORIZER_KEY }}"
 
   configure-eks:
-    name: "Configure EKS Cluster"
+    name: "☸️ Configure EKS Cluster"
     runs-on: ubuntu-latest
     needs: [bootstrap, terraform]
     if: github.ref == 'refs/heads/main'
 
     steps:
-      - name: Checkout
+      - name: 📥 Checkout
         uses: actions/checkout@v4
 
-      - name: Configure AWS Credentials
+      - name: 🔑 Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -165,7 +168,7 @@ jobs:
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
           aws-region: us-east-1
 
-      - name: Install AWS CLI if running in act
+      - name: 📦 Install AWS CLI if running in act
         if: env.ACT == 'true'
         run: |
           echo "Running under act, installing AWS CLI..."
@@ -175,12 +178,12 @@ jobs:
           unzip -q awscliv2.zip
           sudo ./aws/install
 
-      - name: Install kubectl
+      - name: ⚙️ Install kubectl
         uses: azure/setup-kubectl@v3
         with:
-          version: 'v1.31.0'
+          version: "v1.31.0"
 
-      - name: Configure kubectl for EKS
+      - name: ☸️ Configure kubectl for EKS
         run: |
           # Get AWS Account ID
           AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)

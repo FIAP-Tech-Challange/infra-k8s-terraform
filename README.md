@@ -186,6 +186,7 @@ graph TB
 | `AWS_SECRET_ACCESS_KEY` | Chave secreta AWS         | Autenticação AWS        | `ci.yml` |
 | `AWS_SESSION_TOKEN`     | Token de sessão AWS       | Autenticação temporária | `ci.yml` |
 | `LAMBDA_FUNCTION_NAME`  | Nome da função Lambda     | Deploy do Authorizer    | `ci.yml` |
+| `AUTHORIZER_KEY`        | Chave de autorização      | Validação de tokens     | `c&.yml` |
 | `DB_PORT`               | Porta do banco PostgreSQL | Configuração de conexão | `ci.yml` |
 | `DB_NAME`               | Nome do banco de dados    | Configuração de conexão | `ci.yml` |
 
@@ -217,6 +218,7 @@ gh secret set AWS_ACCESS_KEY_ID --body="AKIA..."
 gh secret set AWS_SECRET_ACCESS_KEY --body="your-secret-key"
 gh secret set AWS_SESSION_TOKEN --body="your-session-token"
 gh secret set LAMBDA_FUNCTION_NAME --body="tc-3-f106-authorizer"
+gh secret set AUTHORIZER_KEY --body="your-secure-authorization-key"
 gh secret set DB_PORT --body="5432"
 gh secret set DB_NAME --body="postgres"
 gh secret set CODECOV_TOKEN --body="your-codecov-token"
@@ -229,6 +231,24 @@ gh secret set CODECOV_TOKEN --body="your-codecov-token"
 aws ssm put-parameter --name "/main/rds_endpoint" --value "your-rds-endpoint.amazonaws.com" --type "String"
 aws ssm put-parameter --name "/main/db_username" --value "postgres" --type "String"
 aws ssm put-parameter --name "/main/db_password" --value "your-secure-password" --type "SecureString"
+```
+
+### 🔒 Proteção de Dados Sensíveis
+
+Para evitar vazamento de informações sensíveis nos logs do CI/CD:
+
+- **Mascaramento automático**: Dados sensíveis são mascarados usando `::add-mask::`
+- **Variáveis protegidas**: `DB_PASSWORD`, `DB_HOST`, `AUTHORIZER_KEY` são automaticamente ocultadas
+- **SSM SecureString**: Senhas armazenadas com criptografia no AWS Parameter Store
+- **GitHub Secrets**: Credenciais nunca expostas em logs ou código fonte
+
+```yaml
+# Exemplo de mascaramento no workflow
+- name: Mask sensitive data
+  run: |
+    echo "::add-mask::${{ needs.bootstrap.outputs.db_password }}"
+    echo "::add-mask::${{ needs.bootstrap.outputs.db_host }}"
+    echo "::add-mask::${{ secrets.AUTHORIZER_KEY }}"
 ```
 
 ## � Qualidade e Cobertura
