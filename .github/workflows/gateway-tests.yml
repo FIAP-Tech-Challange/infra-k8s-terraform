@@ -8,9 +8,6 @@ on:
       - ".github/workflows/gateway-tests.yml"
   pull_request:
     branches: [main, develop]
-    paths:
-      - "modules/gateway/**"
-      - ".github/workflows/gateway-tests.yml"
 
 jobs:
   test-authorizer:
