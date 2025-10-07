@@ -15,6 +15,7 @@ graph TB
     APIGW --> EKS[EKS Cluster]
     EKS --> PODS[Application Pods]
     PODS --> RDS
+    ECR[ECR Repository] --> EKS
 
     subgraph "AWS Infrastructure"
         VPC[VPC Default]
@@ -26,6 +27,7 @@ graph TB
 
 ### Componentes Principais
 
+- **ECR Repository**: Registro de imagens Docker para aplicações
 - **EKS Cluster**: Orquestração de containers com Kubernetes
 - **API Gateway**: Gerenciamento de APIs e roteamento
 - **Lambda Authorizer**: Autenticação e autorização serverless
@@ -46,6 +48,9 @@ infra-k8s-terraform/
 │   ├── gateway-tests.yml            # Pipeline de testes do Gateway
 │   └── terraform-apply.yml          # Pipeline de deploy da infraestrutura
 ├── 📁 modules/                       # Módulos Terraform
+│   ├── ecr/                         # Módulo do ECR (Container Registry)
+│   │   ├── main.tf                  # Configuração do repositório ECR
+│   │   └── outputs.tf               # Outputs do repositório
 │   ├── eks/                         # Módulo do cluster EKS
 │   │   ├── main.tf                  # Configuração do cluster
 │   │   ├── variables.tf             # Variáveis do EKS
@@ -58,7 +63,6 @@ infra-k8s-terraform/
 │           ├── 🔧 jest.config.js    # Configuração de testes
 │           ├── 📁 src/              # Código fonte
 │           │   ├── index.js         # Handler principal
-│           │   ├── DatabaseClient.js # Cliente PostgreSQL
 │           │   └── Exception.js     # Classes de exceção
 │           ├── 📁 __tests__/        # Suite de testes
 │           │   ├── Exception.test.js
@@ -68,8 +72,6 @@ infra-k8s-terraform/
 │           └── 📁 iac/              # Infraestrutura do Authorizer
 │               ├── authorizer.tf
 │               └── variables.tf
-└── 📁 scripts/
-    └── bootstrap.sh                 # Script de inicialização
 ```
 
 ## 🔒 Segurança e Proteção de Branch
@@ -301,11 +303,57 @@ Para evitar vazamento de informações sensíveis nos logs do CI/CD:
 
 ---
 
+## 📦 Módulo ECR (Elastic Container Registry)
+
+### Funcionalidades
+
+O módulo ECR provisiona um repositório privado para armazenamento de imagens Docker das aplicações:
+
+- **Repository Name**: `app-service`
+- **Image Mutability**: `MUTABLE` (permite sobrescrita de tags)
+- **Security Scanning**: Habilitado (scan automático no push)
+- **Lifecycle Policy**: Gerenciamento automático de imagens antigas
+
+### Recursos Criados
+
+| Recurso                       | Tipo           | Descrição                                       |
+| ----------------------------- | -------------- | ----------------------------------------------- |
+| `aws_ecr_repository.app_repo` | ECR Repository | Repositório principal para imagens da aplicação |
+
+### Outputs
+
+| Output               | Descrição                       | Uso                         |
+| -------------------- | ------------------------------- | --------------------------- |
+| `ecr_repository_url` | URL completa do repositório ECR | Deploy de aplicações no EKS |
+
+### Uso no Pipeline
+
+```bash
+# Build da imagem
+docker build -t app-service:latest .
+
+# Tag para ECR
+docker tag app-service:latest ${ECR_REPOSITORY_URL}:latest
+
+# Push para ECR
+docker push ${ECR_REPOSITORY_URL}:latest
+```
+
+### Configuração de Segurança
+
+- ✅ **Scan de vulnerabilidades**: Automático em cada push
+- ✅ **Repositório privado**: Acesso restrito via IAM
+- ✅ **Encryption at rest**: Criptografia padrão AWS
+- ✅ **Lifecycle policies**: Limpeza automática de imagens antigas
+
+---
+
 ## 🏗️ Recursos Provisionados
 
 Este projeto provisiona automaticamente:
 
 - **🏠 VPC & Networking**: VPC default, subnets públicas/privadas, security groups
+- **📦 ECR Repository**: Registro de imagens Docker (`app-service`) com scan de segurança
 - **⚙️ EKS Cluster**: Cluster Kubernetes gerenciado (`eks-tc-3-f106`)
 - **🔧 Worker Nodes**: Node group com 1-3 instâncias t3.medium
 - **🔌 API Gateway**: Gateway REST com custom authorizer
