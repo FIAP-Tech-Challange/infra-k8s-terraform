@@ -9,29 +9,12 @@ import {
 } from '@jest/globals';
 import { handler } from '../src/index.js';
 
-const mockPgClient = {
-  connect: jest.fn(),
-  query: jest.fn(),
-  end: jest.fn(),
-};
-
-jest.mock('pg', () => ({
-  Client: jest.fn(() => mockPgClient),
-}));
-
 describe('Authorizer Integration Tests', () => {
   beforeAll(() => {
-    process.env.DB_NAME = 'test_db';
-    process.env.DB_HOST = 'localhost';
-    process.env.DB_PASSWORD = 'test_password';
-    process.env.DB_PORT = '5432';
-    process.env.DB_USER = 'test_user';
+    process.env.AUTHORIZER_KEY = 'integration-test-key-123';
   });
 
   beforeEach(() => {
-    jest.clearAllMocks();
-    mockPgClient.connect.mockResolvedValue();
-
     jest.spyOn(console, 'log').mockImplementation();
     jest.spyOn(console, 'warn').mockImplementation();
     jest.spyOn(console, 'error').mockImplementation();
@@ -39,42 +22,27 @@ describe('Authorizer Integration Tests', () => {
 
   afterAll(() => {
     jest.restoreAllMocks();
+    delete process.env.AUTHORIZER_KEY;
   });
 
   describe('Complete authorization flow', () => {
-    it('should successfully authorize valid totem token', async () => {
-      const validToken = 'totem-abc-123';
+    it('should successfully authorize valid token', async () => {
+      const validToken = 'integration-test-key-123';
       const event = {
         headers: {
           authorization: validToken,
         },
       };
 
-      const dbResult = {
-        rows: [
-          {
-            id: 'totem-id-456',
-            token_access: validToken,
-          },
-        ],
-      };
-
-      mockPgClient.query.mockResolvedValue(dbResult);
-
       const result = await handler(event);
 
       expect(result).toEqual({
         isAuthorized: true,
-        context: {
-          totemId: 'totem-id-456',
-        },
+        context: {},
       });
 
-      expect(mockPgClient.connect).toHaveBeenCalledTimes(1);
-      expect(mockPgClient.query).toHaveBeenCalledWith(
-        'SELECT id, token_access from totems WHERE token_access = $1',
-        [validToken]
-      );
+      expect(console.log).toHaveBeenCalledWith('Validating token format');
+      expect(console.log).toHaveBeenCalledWith('Token format is valid');
     });
 
     it('should handle complete flow with invalid token', async () => {
@@ -85,12 +53,6 @@ describe('Authorizer Integration Tests', () => {
         },
       };
 
-      const dbResult = {
-        rows: [],
-      };
-
-      mockPgClient.query.mockResolvedValue(dbResult);
-
       const result = await handler(event);
 
       expect(result).toEqual({
@@ -100,56 +62,7 @@ describe('Authorizer Integration Tests', () => {
         },
       });
 
-      expect(mockPgClient.connect).toHaveBeenCalledTimes(1);
-      expect(mockPgClient.query).toHaveBeenCalledWith(
-        'SELECT id, token_access from totems WHERE token_access = $1',
-        [invalidToken]
-      );
-    });
-
-    it('should handle database connection failure', async () => {
-      const event = {
-        headers: {
-          authorization: 'some-token',
-        },
-      };
-
-      mockPgClient.connect.mockRejectedValue(new Error('Connection failed'));
-
-      const result = await handler(event);
-
-      expect(result).toEqual({
-        isAuthorized: false,
-        context: {
-          reason: 'Internal server error',
-        },
-      });
-
-      expect(mockPgClient.connect).toHaveBeenCalledTimes(1);
-      expect(console.error).toHaveBeenCalledWith(
-        'Unexpected error during authorization:',
-        expect.any(Error)
-      );
-    });
-
-    it('should handle query execution failure', async () => {
-      const event = {
-        headers: {
-          authorization: 'some-token',
-        },
-      };
-
-      mockPgClient.connect.mockResolvedValue();
-      mockPgClient.query.mockRejectedValue(new Error('Query execution failed'));
-
-      const result = await handler(event);
-
-      expect(result).toEqual({
-        isAuthorized: false,
-        context: {
-          reason: 'Internal server error',
-        },
-      });
+      expect(console.warn).toHaveBeenCalledWith('Token is not valid');
     });
   });
 
@@ -171,45 +84,34 @@ describe('Authorizer Integration Tests', () => {
       }
     });
 
-    it('should handle multiple totems with same token (should return first)', async () => {
-      const token = 'duplicate-token';
+    it('should handle different AUTHORIZER_KEY values', async () => {
+      process.env.AUTHORIZER_KEY = 'dynamic-key-456';
+
       const event = {
         headers: {
-          authorization: token,
+          authorization: 'dynamic-key-456',
         },
       };
-
-      const dbResult = {
-        rows: [
-          { id: 'totem-1', token_access: token },
-          { id: 'totem-2', token_access: token },
-        ],
-      };
-
-      mockPgClient.query.mockResolvedValue(dbResult);
 
       const result = await handler(event);
 
-      expect(result).toEqual({
-        isAuthorized: true,
-        context: {
-          totemId: 'totem-1',
-        },
-      });
+      expect(result.isAuthorized).toBe(true);
+      expect(result.context).toEqual({});
     });
 
-    it('should handle database returning null rows', async () => {
+    it('should handle missing AUTHORIZER_KEY environment variable', async () => {
+      delete process.env.AUTHORIZER_KEY;
+
       const event = {
         headers: {
-          authorization: 'some-token',
+          authorization: 'any-token',
         },
       };
-
-      mockPgClient.query.mockResolvedValue({ rows: null });
 
       const result = await handler(event);
 
       expect(result.isAuthorized).toBe(false);
+      expect(result.context.reason).toBe('Totem invalid or not found');
     });
   });
 });
