@@ -8,6 +8,7 @@ module "gateway" {
   database_host            = var.database_host
   database_name            = var.database_name
   database_password        = var.database_password
+  authorizer_key           = var.authorizer_key
 }
 
 #EKS Module

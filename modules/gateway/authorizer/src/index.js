@@ -1,32 +1,14 @@
-import { DatabaseClient } from './DatabaseClient.js';
 import { TotemInvalidOrNotFound } from './Exception.js';
 
 export const handler = async (event) => {
   try {
-    const token = event.headers?.authorization;
-    console.log('Extracted token:', token);
+    const key = event.headers?.authorization;
 
-    validateToken(token);
-
-    const dbClient = await DatabaseClient.initDbClient({
-      database: process.env.DB_NAME,
-      host: process.env.DB_HOST,
-      password: process.env.DB_PASSWORD,
-      port: parseInt(process.env.DB_PORT, 10),
-      user: process.env.DB_USER,
-    });
-
-    console.log('Testing database connection...');
-    const testResult = await dbClient.query('SELECT 1 as test');
-    console.log('Database connection test successful:', testResult.rows[0]);
-
-    const totemId = await verifyTokenWithStoreTotem(token, dbClient);
+    validateToken(key, process.env.AUTHORIZER_KEY);
 
     return {
       isAuthorized: true,
-      context: {
-        totemId: totemId,
-      },
+      context: {},
     };
   } catch (error) {
     if (error instanceof TotemInvalidOrNotFound) {
@@ -51,9 +33,10 @@ export const handler = async (event) => {
 /**
  * Validates the token format
  * @param {string} token
+ * @param {string} validToken
  * @returns {void}
  */
-function validateToken(token) {
+function validateToken(token, validToken) {
   console.log('Validating token format');
 
   if (!token) {
@@ -71,35 +54,10 @@ function validateToken(token) {
     throw new TotemInvalidOrNotFound();
   }
 
-  console.log('Token format is valid');
-}
-
-/**
- * Verifies the token with StoreTotem service
- * @param {string} token
- * @param {DatabaseClient} dbClient
- * @returns {Promise<id>} Totem ID if valid
- */
-async function verifyTokenWithStoreTotem(token, dbClient) {
-  try {
-    console.log('Verifying token with StoreTotem:', token);
-
-    const res = await dbClient.query(
-      'SELECT id, token_access from totems WHERE token_access = $1',
-      [token]
-    );
-
-    if (res.rows.length === 0) {
-      console.warn('Totem not found for token');
-      throw new TotemInvalidOrNotFound();
-    }
-
-    return res.rows[0].id;
-  } catch (error) {
-    if (error instanceof TotemInvalidOrNotFound) {
-      throw error; // Re-throw validation errors
-    }
-    console.error('Error verifying token with StoreTotem:', error);
-    throw new Error('Database Error');
+  if (token !== validToken) {
+    console.warn('Token is not valid');
+    throw new TotemInvalidOrNotFound();
   }
+
+  console.log('Token format is valid');
 }

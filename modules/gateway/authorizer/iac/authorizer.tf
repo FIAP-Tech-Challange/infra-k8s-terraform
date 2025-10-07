@@ -57,6 +57,7 @@ resource "aws_lambda_function" "authorizer" {
       DB_HOST   = var.database_host
       DB_NAME   = var.database_name
       DB_PASSWORD   = var.database_password
+      AUTHORIZER_KEY = var.authorizer_key
     }
   }
 }

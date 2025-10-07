@@ -7,30 +7,11 @@ import {
   jest,
 } from '@jest/globals';
 import { handler } from '../src/index.js';
-import { DatabaseClient } from '../src/DatabaseClient.js';
 import { TotemInvalidOrNotFound } from '../src/Exception.js';
 
-jest.mock('../src/DatabaseClient.js', () => ({
-  DatabaseClient: {
-    initDbClient: jest.fn(),
-  },
-}));
-
 describe('Authorizer Handler', () => {
-  let mockDbClient;
-
   beforeEach(() => {
-    process.env.DB_NAME = 'test_db';
-    process.env.DB_HOST = 'localhost';
-    process.env.DB_PASSWORD = 'test_password';
-    process.env.DB_PORT = '5432';
-    process.env.DB_USER = 'test_user';
-
-    mockDbClient = {
-      query: jest.fn(),
-    };
-
-    DatabaseClient.initDbClient.mockResolvedValue(mockDbClient);
+    process.env.AUTHORIZER_KEY = 'valid-token-123';
 
     jest.spyOn(console, 'log').mockImplementation();
     jest.spyOn(console, 'warn').mockImplementation();
@@ -39,43 +20,26 @@ describe('Authorizer Handler', () => {
 
   afterEach(() => {
     jest.restoreAllMocks();
+    delete process.env.AUTHORIZER_KEY;
   });
 
   describe('Successful authorization', () => {
-    it('should authorize valid token and return totem ID', async () => {
+    it('should authorize valid token', async () => {
       const event = {
         headers: {
           authorization: 'valid-token-123',
         },
       };
 
-      const mockDbResult = {
-        rows: [{ id: 'totem-123', token_access: 'valid-token-123' }],
-      };
-
-      mockDbClient.query.mockResolvedValue(mockDbResult);
-
       const result = await handler(event);
 
       expect(result).toEqual({
         isAuthorized: true,
-        context: {
-          totemId: 'totem-123',
-        },
+        context: {},
       });
 
-      expect(DatabaseClient.initDbClient).toHaveBeenCalledWith({
-        database: 'test_db',
-        host: 'localhost',
-        password: 'test_password',
-        port: 5432,
-        user: 'test_user',
-      });
-
-      expect(mockDbClient.query).toHaveBeenCalledWith(
-        'SELECT id, token_access from totems WHERE token_access = $1',
-        ['valid-token-123']
-      );
+      expect(console.log).toHaveBeenCalledWith('Validating token format');
+      expect(console.log).toHaveBeenCalledWith('Token format is valid');
     });
   });
 
@@ -168,23 +132,15 @@ describe('Authorizer Handler', () => {
 
       expect(console.warn).toHaveBeenCalledWith('No token provided');
     });
-  });
 
-  describe('Token verification with database', () => {
-    const validEvent = {
-      headers: {
-        authorization: 'valid-token-123',
-      },
-    };
-
-    it('should reject token not found in database', async () => {
-      const mockDbResult = {
-        rows: [],
+    it('should reject request with invalid token', async () => {
+      const event = {
+        headers: {
+          authorization: 'invalid-token',
+        },
       };
 
-      mockDbClient.query.mockResolvedValue(mockDbResult);
-
-      const result = await handler(validEvent);
+      const result = await handler(event);
 
       expect(result).toEqual({
         isAuthorized: false,
@@ -193,42 +149,7 @@ describe('Authorizer Handler', () => {
         },
       });
 
-      expect(console.warn).toHaveBeenCalledWith('Totem not found for token');
-    });
-
-    it('should handle database errors gracefully', async () => {
-      mockDbClient.query.mockRejectedValue(
-        new Error('Database connection failed')
-      );
-
-      const result = await handler(validEvent);
-
-      expect(result).toEqual({
-        isAuthorized: false,
-        context: {
-          reason: 'Internal server error',
-        },
-      });
-
-      expect(console.error).toHaveBeenCalledWith(
-        'Unexpected error during authorization:',
-        expect.any(Error)
-      );
-    });
-
-    it('should handle database client initialization errors', async () => {
-      DatabaseClient.initDbClient.mockRejectedValue(
-        new Error('DB init failed')
-      );
-
-      const result = await handler(validEvent);
-
-      expect(result).toEqual({
-        isAuthorized: false,
-        context: {
-          reason: 'Internal server error',
-        },
-      });
+      expect(console.warn).toHaveBeenCalledWith('Token is not valid');
     });
   });
 
@@ -256,71 +177,45 @@ describe('Authorizer Handler', () => {
         },
       });
     });
-
-    it('should extract token correctly from headers', async () => {
-      const event = {
-        headers: {
-          authorization: 'test-token',
-          'content-type': 'application/json',
-        },
-      };
-
-      mockDbClient.query.mockResolvedValue({ rows: [] });
-
-      await handler(event);
-
-      expect(console.log).toHaveBeenCalledWith(
-        'Extracted token:',
-        'test-token'
-      );
-    });
   });
 
   describe('Environment variables', () => {
-    it('should use correct environment variables for database connection', async () => {
-      process.env.DB_NAME = 'prod_db';
-      process.env.DB_HOST = 'prod.example.com';
-      process.env.DB_PASSWORD = 'prod_password';
-      process.env.DB_PORT = '3306';
-      process.env.DB_USER = 'prod_user';
+    it('should use AUTHORIZER_KEY environment variable', async () => {
+      process.env.AUTHORIZER_KEY = 'custom-key-123';
 
       const event = {
         headers: {
-          authorization: 'valid-token',
+          authorization: 'custom-key-123',
         },
       };
 
-      mockDbClient.query.mockResolvedValue({ rows: [{ id: '1' }] });
+      const result = await handler(event);
 
-      await handler(event);
-
-      expect(DatabaseClient.initDbClient).toHaveBeenCalledWith({
-        database: 'prod_db',
-        host: 'prod.example.com',
-        password: 'prod_password',
-        port: 3306,
-        user: 'prod_user',
+      expect(result).toEqual({
+        isAuthorized: true,
+        context: {},
       });
     });
 
-    it('should handle invalid DB_PORT environment variable', async () => {
-      process.env.DB_PORT = 'invalid-port';
+    it('should reject when token does not match AUTHORIZER_KEY', async () => {
+      process.env.AUTHORIZER_KEY = 'expected-key';
 
       const event = {
         headers: {
-          authorization: 'valid-token',
+          authorization: 'wrong-key',
         },
       };
 
-      await handler(event);
+      const result = await handler(event);
 
-      expect(DatabaseClient.initDbClient).toHaveBeenCalledWith({
-        database: 'test_db',
-        host: 'localhost',
-        password: 'test_password',
-        port: NaN,
-        user: 'test_user',
+      expect(result).toEqual({
+        isAuthorized: false,
+        context: {
+          reason: 'Totem invalid or not found',
+        },
       });
+
+      expect(console.warn).toHaveBeenCalledWith('Token is not valid');
     });
   });
 });

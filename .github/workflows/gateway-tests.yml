@@ -4,11 +4,13 @@ on:
   push:
     branches: [main, develop]
     paths:
-      - "gateway/**"
+      - "modules/gateway/**"
+      - ".github/workflows/gateway-tests.yml"
   pull_request:
     branches: [main, develop]
     paths:
-      - "gateway/**"
+      - "modules/gateway/**"
+      - ".github/workflows/gateway-tests.yml"
 
 jobs:
   test-authorizer:
@@ -16,7 +18,7 @@ jobs:
 
     defaults:
       run:
-        working-directory: ./gateway/authorizer
+        working-directory: ./modules/gateway/authorizer
 
     steps:
       - name: Checkout repository
@@ -27,7 +29,7 @@ jobs:
         with:
           node-version: "20.x"
           cache: "npm"
-          cache-dependency-path: ./gateway/authorizer/package-lock.json
+          cache-dependency-path: ./modules/gateway/authorizer/package-lock.json
 
       - name: Install dependencies
         run: npm ci
@@ -41,7 +43,7 @@ jobs:
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v4
         with:
-          file: ./gateway/authorizer/coverage/lcov.info
+          file: ./modules/gateway/authorizer/coverage/lcov.info
           flags: authorizer
           name: authorizer-coverage
           fail_ci_if_error: false
