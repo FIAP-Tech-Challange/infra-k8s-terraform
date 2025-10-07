@@ -28,3 +28,8 @@ variable "database_name" {
   description = "Name of the database"
   type        = string
 }
+
+variable "authorizer_key" {
+  description = "Key for the authorizer Lambda function"
+  type        = string
+}

@@ -30,6 +30,11 @@ variable "authorizer_function_name" {
   default     = "totem_authorizer_function"
 }
 
+variable "authorizer_key" {
+  description = "Key for the authorizer Lambda function"
+  type        = string
+}
+
 variable "aws_region" {
   description = "AWS region for resources"
   type        = string

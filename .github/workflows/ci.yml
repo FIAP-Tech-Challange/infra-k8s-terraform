@@ -132,7 +132,8 @@ jobs:
             -var="database_user=${{ needs.bootstrap.outputs.db_user }}" \
             -var="database_password=${{ needs.bootstrap.outputs.db_password }}" \
             -var="database_port=${{ secrets.DB_PORT }}" \
-            -var="database_name=${{ secrets.DB_NAME }}"
+            -var="database_name=${{ secrets.DB_NAME }}" \
+            -var="authorizer_key=${{ secrets.AUTHORIZER_KEY }}"
 
       - name: Terraform Apply
         if: github.ref == 'refs/heads/main'
@@ -143,7 +144,8 @@ jobs:
             -var="database_user=${{ needs.bootstrap.outputs.db_user }}" \
             -var="database_password=${{ needs.bootstrap.outputs.db_password }}" \
             -var="database_port=${{ secrets.DB_PORT }}" \
-            -var="database_name=${{ secrets.DB_NAME }}"
+            -var="database_name=${{ secrets.DB_NAME }}" \
+            -var="authorizer_key=${{ secrets.AUTHORIZER_KEY }}"
 
   configure-eks:
     name: "Configure EKS Cluster"

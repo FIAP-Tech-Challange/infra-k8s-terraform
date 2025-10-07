@@ -12,6 +12,7 @@ module "authorizer" {
   database_host            = var.database_host
   database_name            = var.database_name
   database_password        = var.database_password
+  authorizer_key           = var.authorizer_key
 }
 
 resource "aws_apigatewayv2_api" "http_api" {
